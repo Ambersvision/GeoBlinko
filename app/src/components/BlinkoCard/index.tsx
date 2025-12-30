@@ -22,6 +22,8 @@ import { PluginRender } from "@/store/plugin/pluginRender";
 import { useLocation } from "react-router-dom";
 import { SwipeableCard } from "./SwipeableCard";
 import { api } from "@/lib/trpc";
+import { LocationDisplay } from "@/components/LocationDisplay";
+import { eventBus } from "@/lib/event";
 
 
 export type BlinkoItem = Note & {
@@ -193,6 +195,23 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
                   ))}
 
                 <CardFooter blinkoItem={blinkoItem} blinko={blinko} isShareMode={isShareMode} />
+                
+                {/* 地理位置显示 */}
+                {blinkoItem.metadata?.locations && blinkoItem.metadata.locations.length > 0 && (
+                  <LocationDisplay
+                    locations={blinkoItem.metadata.locations}
+                    isEditable={!isShareMode}
+                    onEdit={() => {
+                      // 编辑位置
+                      if (isShareMode) return;
+                      blinko.curSelectedNote = _.cloneDeep(blinkoItem);
+                      // 触发编辑事件
+                      eventBus.emit('editor:openLocationPicker');
+                    }}
+                    compact={!isExpanded}
+                  />
+                )}
+                
                 {!blinko.config.value?.isHideCommentInCard && blinkoItem.comments && blinkoItem.comments.length > 0 && (
                   <SimpleCommentList blinkoItem={blinkoItem} />
                 )}

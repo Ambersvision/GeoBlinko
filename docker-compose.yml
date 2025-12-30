@@ -1,5 +1,5 @@
 # docker-compose.dev.yml
-version: '3'
+#version: '3'
 
 networks:
   blinko-network:
@@ -17,8 +17,8 @@ services:
       NODE_ENV: production
       NEXTAUTH_URL: http://localhost:1111
       NEXT_PUBLIC_BASE_URL: http://localhost:1111
-      NEXTAUTH_SECRET: my_ultra_secure_nextauth_secret
-      DATABASE_URL: postgresql://postgres:mysecretpassword@postgres:5432/postgres
+      NEXTAUTH_SECRET: Bhtcgroup.0
+      DATABASE_URL: postgresql://postgres:Bhtcgroup.0@postgres:5432/postgres
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,15 +35,15 @@ services:
       - blinko-network
 
   postgres:
-    image: postgres:14
+    image: swr.cn-north-4.myhuaweicloud.com/library/postgres:14-alpine
     container_name: blinko-postgres
     restart: always
-    # ports:
-    #  - 5432:5432
+    ports:
+      - 5432:5432
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_PASSWORD: Bhtcgroup.0
     healthcheck:
       test:
         ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]

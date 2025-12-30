@@ -32,6 +32,7 @@
     "fs:allow-app-write",
     "blinko:default",
     "core:window:allow-center",
+    "geolocation:default",
     {
       "identifier": "fs:scope",
       "allow": [

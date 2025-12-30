@@ -23,6 +23,7 @@ export interface User extends jwt.JwtPayload {
   userAgent?: any;
   permissions?: string[];
   twoFactorVerified?: boolean;
+  amapApiKey?: string;
 }
 
 export async function createContext(req: Request, res: Response) {
@@ -33,13 +34,22 @@ export async function createContext(req: Request, res: Response) {
   try {
     const token = await getTokenFromRequest(req as any) as User;
     if (token?.sub) {
-      return { ...token, id: token.sub, ip: req?.ip || '0.0.0.0', userAgent } as User;
+      return { 
+        ...token, 
+        id: token.sub, 
+        ip: req?.ip || '0.0.0.0', 
+        userAgent,
+        amapApiKey: process.env.AMAP_WEB_API_KEY || ''
+      } as User;
     }
   } catch (error) {
     console.error('get token error:', error);
   }
   
-  return { userAgent } as User;
+  return { 
+    userAgent,
+    amapApiKey: process.env.AMAP_WEB_API_KEY || ''
+  } as User;
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

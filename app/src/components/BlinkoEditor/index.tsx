@@ -3,9 +3,11 @@ import Editor from "../Common/Editor"
 import { RootStore } from "@/store"
 import { BlinkoStore } from "@/store/blinkoStore"
 import dayjs from "@/lib/dayjs"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { NoteType } from "@shared/lib/types"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import { LocationPicker, LocationData } from "@/components/LocationPicker"
+import { eventBus } from "@/lib/event"
 
 type IProps = {
   mode: 'create' | 'edit',
@@ -24,6 +26,8 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const location = useLocation()
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false)
+  const [editorLocations, setEditorLocations] = useState<LocationData[]>([])
 
   const store = RootStore.Local(() => ({
     get noteContent() {
@@ -105,13 +109,33 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
         if (local && local?.content != '') {
           blinko.curSelectedNote!.content = local!.content
         }
+        // 加载编辑模式下的位置数据
+        if (blinko.curSelectedNote?.metadata?.locations) {
+          setEditorLocations(blinko.curSelectedNote.metadata.locations)
+        }
       } catch (error) {
         console.error(error)
       }
     }
   }, [mode])
 
-  // Use Tauri hotkey hook
+  // 监听打开位置选择器事件
+  useEffect(() => {
+    const handleOpenLocationPicker = () => {
+      setIsLocationPickerOpen(true)
+    }
+    eventBus.on('editor:openLocationPicker', handleOpenLocationPicker)
+    return () => {
+      eventBus.off('editor:openLocationPicker', handleOpenLocationPicker)
+    }
+  }, [])
+
+  // 处理插入位置文本到编辑器
+  const handleInsertLocationText = (text: string) => {
+    // 通过 eventBus 触发 editor:insert 事件
+    // 这样可以复用 Editor 组件中已有的插入逻辑
+    eventBus.emit('editor:insert', text)
+  }
 
 
   return <div className={`h-full ${withoutOutline ? '' : ''}`} ref={editorRef} id='global-editor' data-tauri-drag-region onClick={() => {
@@ -143,12 +167,19 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           <div className='text-xs text-desc'>{dayjs(blinko.curSelectedNote!.createdAt).format("YYYY-MM-DD hh:mm:ss")}</div>
       }
       onSend={async ({ files, references, noteType, metadata }) => {
+        // 合并位置数据到 metadata
+        const finalMetadata = {
+          ...metadata,
+          locations: editorLocations
+        }
+
         if (isCreateMode) {
           console.log("createMode", files, references, noteType, metadata)
           //@ts-ignore
-          await blinko.upsertNote.call({ type: noteType, references, refresh: false, content: blinko.noteContent, attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }), metadata })
+          await blinko.upsertNote.call({ type: noteType, references, refresh: false, content: blinko.noteContent, attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }), metadata: finalMetadata })
           blinko.createAttachmentsStorage.clear()
           blinko.createContentStorage.clear()
+          setEditorLocations([])
           if (blinko.noteTypeDefault == NoteType.NOTE && searchParams.get('path') != 'notes') {
             await navigate('/?path=notes')
             blinko.forceQuery++
@@ -167,7 +198,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             //@ts-ignore
             attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }),
             references,
-            metadata
+            metadata: finalMetadata
           })
           try {
             const index = blinko.editAttachmentsStorage.list?.findIndex(i => i.id == blinko.curSelectedNote!.id)
@@ -178,10 +209,22 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           } catch (error) {
             console.error(error)
           }
+          setEditorLocations([])
         }
         onSended?.()
       }} />
-  </div>
+
+      {/* 位置选择器 */}
+      <LocationPicker
+        isOpen={isLocationPickerOpen}
+        initialLocations={editorLocations}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onInsertLocationText={handleInsertLocationText}
+        onAddLocations={(locations) => {
+          setEditorLocations(locations)
+        }}
+      />
+    </div>
 })
 
 

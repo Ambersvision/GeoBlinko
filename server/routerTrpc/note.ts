@@ -14,6 +14,18 @@ import { Context } from '../context';
 import { cache } from '@shared/lib/cache';
 import { AiModelFactory } from '@server/aiServer/aiModelFactory';
 import { authProcedure, demoAuthMiddleware, publicProcedure, router } from '@server/middleware';
+import { amapClient } from '../lib/location';
+import { mockAmapClient } from '../lib/locationMock';
+
+// 如果没有配置高德地图 API Key，使用模拟服务
+const useMockClient = !process.env.AMAP_WEB_API_KEY || process.env.AMAP_WEB_API_KEY === 'your_amap_api_key_here';
+const locationClient = useMockClient ? mockAmapClient : amapClient;
+
+if (useMockClient) {
+  console.log('[Location] Using mock location client for development/testing');
+} else {
+  console.log('[Location] Using real Amap API client');
+}
 
 const extractHashtags = (input: string): string[] => {
   const withoutCodeBlocks = input.replace(/```[\s\S]*?```/g, '');
@@ -43,6 +55,9 @@ export const noteRouter = router({
         startDate: z.union([z.date(), z.null(), z.string()]).default(null).optional(),
         endDate: z.union([z.date(), z.null(), z.string()]).default(null).optional(),
         hasTodo: z.boolean().default(false).optional(),
+        // 地理位置筛选参数
+        hasLocation: z.boolean().optional(),
+        locationKeyword: z.string().optional(),
       }),
     )
     .output(
@@ -104,7 +119,7 @@ export const noteRouter = router({
       ),
     )
     .mutation(async function ({ input, ctx }) {
-      const { tagId, type, isArchived, isRecycle, searchText, page, size, orderBy, withFile, withoutTag, withLink, isUseAiQuery, startDate, endDate, isShare, hasTodo } = input;
+      const { tagId, type, isArchived, isRecycle, searchText, page, size, orderBy, withFile, withoutTag, withLink, isUseAiQuery, startDate, endDate, isShare, hasTodo, hasLocation, locationKeyword } = input;
       if (isUseAiQuery && searchText?.trim() != '') {
         const cleanedQuery = searchText?.replace(/@/g, '').trim();
         if (cleanedQuery && cleanedQuery.length > 0) {
@@ -190,6 +205,27 @@ export const noteRouter = router({
           { content: { contains: '* [x]', mode: 'insensitive' } },
         ];
       }
+
+      // 地理位置筛选
+      if (hasLocation !== undefined) {
+        where.metadata = hasLocation ? {
+          path: ['locations'],
+          not: { equals: [] }
+        } : {
+          OR: [
+            { locations: { equals: null } },
+            { locations: { equals: [] } }
+          ]
+        };
+      }
+
+      if (locationKeyword && locationKeyword.trim()) {
+        const keyword = locationKeyword.trim();
+        where.metadata = {
+          path: ['locations'],
+          array_contains: keyword
+        };
+      }
       const config = await getGlobalConfig({ ctx });
       let timeOrderBy = config?.isOrderByCreateTime ? { createdAt: orderBy } : { updatedAt: orderBy };
 
@@ -198,8 +234,28 @@ export const noteRouter = router({
         orderBy: [{ isTop: 'desc' }, { sortOrder: 'asc' }, timeOrderBy],
         skip: (page - 1) * size,
         take: size,
-        include: {
-          tags: { include: { tag: true } },
+        select: {
+          id: true,
+          content: true,
+          type: true,
+          isArchived: true,
+          isRecycle: true,
+          isShare: true,
+          isTop: true,
+          isReviewed: true,
+          sharePassword: true,
+          shareEncryptedUrl: true,
+          shareExpiryDate: true,
+          accountId: true,
+          createdAt: true,
+          updatedAt: true,
+          sortOrder: true,
+          metadata: true,
+          tags: {
+            include: {
+              tag: true
+            }
+          },
           attachments: {
             orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
           },
@@ -247,6 +303,8 @@ export const noteRouter = router({
           internalShares: true,
         },
       });
+
+      console.log('[Server] list returning notes with metadata:', notes.map(n => ({ id: n.id, hasMetadata: !!n.metadata, metadata: n.metadata })));
 
       return notes.map((note) => ({
         ...note,
@@ -301,42 +359,64 @@ export const noteRouter = router({
       ),
     )
     .mutation(async function ({ input }) {
-      return cache.wrap(
-        '/v1/note/public-list',
-        async () => {
-          const { page, size, searchText } = input;
-          return await prisma.notes.findMany({
-            where: {
-              isShare: true,
-              sharePassword: '',
-              OR: [{ shareExpiryDate: { gt: new Date() } }, { shareExpiryDate: null }],
-              ...(searchText != '' && { content: { contains: searchText, mode: 'insensitive' } }),
-            },
-            orderBy: [{ isTop: 'desc' }, { updatedAt: 'desc' }],
-            skip: (page - 1) * size,
-            take: size,
-            include: {
-              tags: { include: { tag: true } },
-              account: {
-                select: {
-                  image: true,
-                  nickname: true,
-                  name: true,
-                  id: true,
+        return cache.wrap(
+          '/v1/note/public-list',
+          async () => {
+            const { page, size, searchText } = input;
+            const notes = await prisma.notes.findMany({
+              where: {
+                isShare: true,
+                sharePassword: '',
+                OR: [{ shareExpiryDate: { gt: new Date() } }, { shareExpiryDate: null }],
+                ...(searchText != '' && { content: { contains: searchText, mode: 'insensitive' } }),
+              },
+              orderBy: [{ isTop: 'desc' }, { updatedAt: 'desc' }],
+              skip: (page - 1) * size,
+              take: size,
+              select: {
+                id: true,
+                content: true,
+                type: true,
+                isArchived: true,
+                isRecycle: true,
+                isShare: true,
+                isTop: true,
+                isReviewed: true,
+                sharePassword: true,
+                shareEncryptedUrl: true,
+                shareExpiryDate: true,
+                accountId: true,
+                createdAt: true,
+                updatedAt: true,
+                sortOrder: true,
+                metadata: true,
+                tags: {
+                  include: { tag: true }
+                },
+                account: {
+                  select: {
+                    image: true,
+                    nickname: true,
+                    name: true,
+                    id: true,
+                  },
+                },
+                attachments: true,
+                _count: {
+                  select: {
+                    comments: true,
+                  },
                 },
               },
-              attachments: true,
-              _count: {
-                select: {
-                  comments: true,
-                },
-              },
-            },
-          });
-        },
-        { ttl: 1000 * 5 },
-      );
-    }),
+            });
+
+            console.log('[Server] publicList returning notes with metadata:', notes.map(n => ({ id: n.id, hasMetadata: !!n.metadata, metadata: n.metadata })));
+
+            return notes;
+          },
+          { ttl: 1000 * 5 },
+        );
+      }),
   listByIds: authProcedure
     .meta({ openapi: { method: 'POST', path: '/v1/note/list-by-ids', summary: 'Query notes list by ids', protect: true, tags: ['Note'] } })
     .input(z.object({ ids: z.array(z.number()) }))
@@ -390,10 +470,28 @@ export const noteRouter = router({
     )
     .mutation(async function ({ input, ctx }) {
       const { ids } = input;
-      return await prisma.notes.findMany({
+      const notes = await prisma.notes.findMany({
         where: { id: { in: ids }, accountId: Number(ctx.id) },
-        include: {
-          tags: { include: { tag: true } },
+        select: {
+          id: true,
+          content: true,
+          type: true,
+          isArchived: true,
+          isRecycle: true,
+          isShare: true,
+          isTop: true,
+          isReviewed: true,
+          sharePassword: true,
+          shareEncryptedUrl: true,
+          shareExpiryDate: true,
+          accountId: true,
+          createdAt: true,
+          updatedAt: true,
+          sortOrder: true,
+          metadata: true,
+          tags: {
+            include: { tag: true }
+          },
           attachments: {
             orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
           },
@@ -429,6 +527,10 @@ export const noteRouter = router({
           },
         },
       });
+
+      console.log('[Server] listByIds returning notes with metadata:', notes.map(n => ({ id: n.id, hasMetadata: !!n.metadata, metadata: n.metadata })));
+
+      return notes;
     }),
   publicDetail: publicProcedure
     .meta({ openapi: { method: 'POST', path: '/v1/note/public-detail', summary: 'Query share note detail', tags: ['Note'] } })
@@ -632,7 +734,23 @@ export const noteRouter = router({
             { internalShares: { some: { accountId: Number(ctx.id) } } }
           ]
         },
-        include: {
+        select: {
+          id: true,
+          content: true,
+          type: true,
+          isArchived: true,
+          isRecycle: true,
+          isShare: true,
+          isTop: true,
+          isReviewed: true,
+          sharePassword: true,
+          shareEncryptedUrl: true,
+          shareExpiryDate: true,
+          accountId: true,
+          createdAt: true,
+          updatedAt: true,
+          sortOrder: true,
+          metadata: true,
           tags: {
             include: {
               tag: true,
@@ -1795,6 +1913,147 @@ export const noteRouter = router({
       );
 
       return { success: true };
+    }),
+
+  // ========== 地理位置相关路由 ==========
+  
+  // 搜索地理位置（POI 搜索）
+  searchLocation: authProcedure
+    .meta({ openapi: { method: 'POST', path: '/v1/note/search-location', summary: 'Search location', protect: true, tags: ['Location'] } })
+    .input(z.object({
+      keyword: z.string(),
+      city: z.string().optional(),
+      pageSize: z.number().default(10)
+    }))
+    .output(z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      address: z.string(),
+      formattedAddress: z.string(),
+      latitude: z.number(),
+      longitude: z.number(),
+      distance: z.string().optional(),
+      type: z.string().optional()
+    })))
+    .mutation(async function ({ input }) {
+      const { keyword, city, pageSize } = input;
+      
+      try {
+        const results = await locationClient.searchLocation({
+          keyword,
+          city,
+          pageSize
+        });
+        return results;
+      } catch (error) {
+        console.error('Search location error:', error);
+        throw new Error('Failed to search location');
+      }
+    }),
+
+  // 逆地理编码（坐标转地址）
+  reverseGeocode: authProcedure
+    .meta({ openapi: { method: 'POST', path: '/v1/note/reverse-geocode', summary: 'Reverse geocode', protect: true, tags: ['Location'] } })
+    .input(z.object({
+      latitude: z.number(),
+      longitude: z.number(),
+      radius: z.number().default(1000)
+    }))
+    .output(z.object({
+      address: z.string(),
+      formattedAddress: z.string(),
+      province: z.string(),
+      city: z.string(),
+      district: z.string(),
+      street: z.string(),
+      poiName: z.string().optional(),
+      distance: z.string().optional()
+    }))
+    .mutation(async function ({ input }) {
+      const { latitude, longitude, radius } = input;
+      
+      try {
+        const result = await locationClient.reverseGeocode({
+          latitude,
+          longitude,
+          radius
+        });
+        return result;
+      } catch (error) {
+        console.error('Reverse geocode error:', error);
+        throw new Error('Failed to reverse geocode');
+      }
+    }),
+
+  // 获取周边地理位置
+  getNearbyLocations: authProcedure
+    .meta({ openapi: { method: 'POST', path: '/v1/note/nearby-locations', summary: 'Get nearby locations', protect: true, tags: ['Location'] } })
+    .input(z.object({
+      latitude: z.number(),
+      longitude: z.number(),
+      radius: z.number().default(500),
+      keywords: z.string().optional(),
+      pageSize: z.number().default(10)
+    }))
+    .output(z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      address: z.string(),
+      formattedAddress: z.string(),
+      latitude: z.number(),
+      longitude: z.number(),
+      distance: z.string(),
+      type: z.string()
+    })))
+    .mutation(async function ({ input }) {
+      const { latitude, longitude, radius, keywords, pageSize } = input;
+      
+      try {
+        const results = await locationClient.searchNearby({
+          latitude,
+          longitude,
+          keywords,
+          radius,
+          pageSize
+        });
+        return results;
+      } catch (error) {
+        console.error('Get nearby locations error:', error);
+        throw new Error('Failed to get nearby locations');
+      }
+    }),
+
+  // 地理位置输入提示（自动补全）
+  getLocationTips: authProcedure
+    .meta({ openapi: { method: 'POST', path: '/v1/note/location-tips', summary: 'Get location input tips', protect: true, tags: ['Location'] } })
+    .input(z.object({
+      keyword: z.string(),
+      city: z.string().optional(),
+      limit: z.number().default(10)
+    }))
+    .output(z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      address: z.string(),
+      formattedAddress: z.string(),
+      latitude: z.number(),
+      longitude: z.number(),
+      district: z.string().optional()
+    })))
+    .mutation(async function ({ input }) {
+      const { keyword, city, limit } = input;
+      
+      try {
+        const results = await locationClient.getInputTips({
+          keyword,
+          city,
+          limit
+        });
+        return results;
+      } catch (error) {
+        console.error('Get location tips error:', error);
+        throw new Error('Failed to get location tips');
+      }
     }),
 });
 

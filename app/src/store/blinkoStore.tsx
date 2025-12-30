@@ -102,7 +102,9 @@ export class BlinkoStore implements Store {
     isUseAiQuery: false,
     startDate: null as Date | null,
     endDate: null as Date | null,
-    hasTodo: false
+    hasTodo: false,
+    hasLocation: undefined as boolean | undefined,
+    locationKeyword: ''
   }
   noteTypeDefault: NoteType = NoteType.BLINKO
   currentCommonFilter: filterType | null = null
@@ -158,6 +160,13 @@ export class BlinkoStore implements Store {
         page, 
         size 
       };
+      // 添加地理位置筛选参数
+      if (this.noteListFilterConfig.hasLocation !== undefined) {
+        queryParams.hasLocation = this.noteListFilterConfig.hasLocation;
+      }
+      if (this.noteListFilterConfig.locationKeyword?.trim()) {
+        queryParams.locationKeyword = this.noteListFilterConfig.locationKeyword;
+      }
       notes = await api.notes.list.mutate(queryParams);
 
       
@@ -612,6 +621,8 @@ export class BlinkoStore implements Store {
       this.noteListFilterConfig.endDate = null
       this.noteListFilterConfig.isShare = null
       this.noteListFilterConfig.hasTodo = false
+      this.noteListFilterConfig.hasLocation = undefined
+      this.noteListFilterConfig.locationKeyword = ''
 
       if (path == 'notes') {
         this.noteListFilterConfig.type = NoteType.NOTE

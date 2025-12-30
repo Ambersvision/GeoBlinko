@@ -831,5 +831,57 @@
   "mcp-server-tools": "Tools available from {{serverName}}:",
   "view-tools": "Tools from {{serverName}}",
   "close": "Close",
-  "add": "Add"
+  "add": "Add",
+  "location": {
+    "notSupported": "Geolocation is not supported",
+    "permission": {
+      "title": "Location Permission Required",
+      "description": "Blinko needs to access your location to:",
+      "feature1": "Automatically add geographic location to notes",
+      "feature2": "Get nearby geographic location information",
+      "feature3": "Filter notes by geographic location",
+      "privacyNotice": "Your location information will only be used for adding geographic markers and will not be used for any other purposes.",
+      "cancel": "Cancel",
+      "allow": "Allow Location Access"
+    },
+    "picker": {
+      "title": "Add Location",
+      "subtitle": "Add one or more geographic locations to your note",
+      "selected": "Selected",
+      "searchTitle": "Search Location",
+      "searchPlaceholder": "Search by place name, address...",
+      "confirm": "Done"
+    },
+    "currentLocation": {
+      "button": "Get Current Location",
+      "loading": "Getting location...",
+      "added": "Current location added",
+      "error": "Failed to get current location. Please try again or select manually.",
+      "hint": "Click to get your current GPS location. Allow browser to access your location permission",
+      "preview": "Location Preview (Please Confirm)"
+    },
+    "search": {
+      "added": "Location added",
+      "error": "Failed to search location"
+    },
+    "display": {
+      "title": "Locations",
+      "edit": "Edit",
+      "viewOnMap": "View on Map",
+      "justNow": "Just now",
+      "minutesAgo": "minutes ago",
+      "hoursAgo": "hours ago"
+    },
+    "filter": {
+      "title": "Location",
+      "hasLocation": "Has Location",
+      "noLocation": "No Location",
+      "searchSection": "Search by location",
+      "keywordPlaceholder": "Search by location name...",
+      "clear": "Clear Location Filter"
+    },
+    "settings": {
+      "openFailed": "Failed to open system settings"
+    }
+  }
 }

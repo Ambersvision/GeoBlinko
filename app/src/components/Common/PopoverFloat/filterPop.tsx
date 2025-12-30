@@ -1,5 +1,5 @@
 import { Icon } from '@/components/Common/Iconify/icons';
-import { Popover, PopoverContent, PopoverTrigger, Select, SelectItem, Button, Radio, RadioGroup } from "@heroui/react";
+import { Popover, PopoverContent, PopoverTrigger, Select, SelectItem, Button, Radio, RadioGroup, Input } from "@heroui/react";
 import { useTranslation } from "react-i18next";
 import { RootStore } from "@/store";
 import { BlinkoStore } from "@/store/blinkoStore";
@@ -8,6 +8,7 @@ import { RangeCalendar } from "@heroui/react";
 import { today, getLocalTimeZone } from "@internationalized/date";
 import dayjs from "@/lib/dayjs";
 import TagSelector from "@/components/Common/TagSelector";
+import { debounce } from "lodash";
 
 export default function FilterPop() {
   const { t } = useTranslation();
@@ -24,6 +25,13 @@ export default function FilterPop() {
   const [tagStatus, setTagStatus] = useState<string>("all");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<{
+    hasLocation?: boolean;
+    locationKeyword?: string;
+  }>({
+    hasLocation: undefined,
+    locationKeyword: ''
+  });
 
   const conditions = [
     { label: t('has-link'), value: 'hasLink' },
@@ -43,6 +51,8 @@ export default function FilterPop() {
       withLink: selectedCondition === 'hasLink',
       isShare: selectedCondition === 'isShare' ? true : false,
       hasTodo: selectedCondition === 'hasTodo',
+      hasLocation: locationFilter.hasLocation,
+      locationKeyword: locationFilter.locationKeyword?.trim() || undefined,
       isArchived: null
     };
     blinkoStore.noteList.resetAndCall({});
@@ -53,6 +63,7 @@ export default function FilterPop() {
     setTagStatus("all");
     setSelectedTag(null);
     setSelectedCondition(null);
+    setLocationFilter({ hasLocation: undefined, locationKeyword: '' });
 
     blinkoStore.noteListFilterConfig = {
       ...blinkoStore.noteListFilterConfig,
@@ -64,7 +75,9 @@ export default function FilterPop() {
       withLink: false,
       isArchived: false,
       isShare: null,
-      hasTodo: false
+      hasTodo: false,
+      hasLocation: undefined,
+      locationKeyword: ''
     };
     blinkoStore.noteList.resetAndCall({});
   };
@@ -198,6 +211,58 @@ export default function FilterPop() {
                 </Radio>
               ))}
             </RadioGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="text-sm font-medium flex items-center gap-2">
+              <Icon icon="solar:map-location-bold-duotone" width="20" height="20" />
+              {t('location.filter.title')}
+            </div>
+            <RadioGroup
+              value={locationFilter.hasLocation !== undefined ? String(locationFilter.hasLocation) : ""}
+              onValueChange={(value) => {
+                setLocationFilter({
+                  ...locationFilter,
+                  hasLocation: value === 'true' ? true : (value === 'false' ? false : undefined)
+                });
+              }}
+            >
+              <Radio value="">{t('all')}</Radio>
+              <Radio value="true">{t('location.filter.hasLocation')}</Radio>
+              <Radio value="false">{t('location.filter.noLocation')}</Radio>
+            </RadioGroup>
+            <Input
+              placeholder={t('location.filter.keywordPlaceholder')}
+              value={locationFilter.locationKeyword}
+              onValueChange={debounce((value) => {
+                setLocationFilter({
+                  ...locationFilter,
+                  locationKeyword: value
+                });
+              }, 300)}
+              startContent={
+                <Icon icon="solar:magnifier-bold" width={18} height={18} className="text-default-400" />
+              }
+              endContent={
+                locationFilter.locationKeyword && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    onPress={() => {
+                      setLocationFilter({
+                        ...locationFilter,
+                        locationKeyword: ''
+                      });
+                    }}
+                  >
+                    <Icon icon="solar:close-circle-bold" width={16} height={16} />
+                  </Button>
+                )
+              }
+              size="sm"
+              className="w-full"
+            />
           </div>
 
           <div className="flex gap-2">

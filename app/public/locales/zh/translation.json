@@ -848,5 +848,57 @@
   "mcp-server-tools": "来自 {{serverName}} 的可用工具：",
   "view-tools": "{{serverName}} 的工具",
   "close": "关闭",
-  "add": "添加"
+  "add": "添加",
+  "location": {
+    "notSupported": "不支持地理位置服务",
+    "permission": {
+      "title": "需要位置权限",
+      "description": "Blinko 需要访问您的位置以：",
+      "feature1": "自动为笔记添加地理位置标记",
+      "feature2": "获取周边地理位置信息",
+      "feature3": "按地理位置筛选笔记",
+      "privacyNotice": "您的位置信息将仅用于添加地理标记，不会被用于其他目的。",
+      "cancel": "取消",
+      "allow": "允许位置访问"
+    },
+    "picker": {
+      "title": "添加地理位置",
+      "subtitle": "为您的笔记添加一个或多个地理位置",
+      "selected": "已选择",
+      "searchTitle": "搜索地理位置",
+      "searchPlaceholder": "搜索地点名称、地址...",
+      "confirm": "完成"
+    },
+    "currentLocation": {
+      "button": "获取当前位置",
+      "loading": "获取位置中...",
+      "added": "当前位置已添加",
+      "error": "获取当前位置失败，请重试或手动选择。",
+      "hint": "点击后获取您当前GPS位置，允许浏览器访问位置权限",
+      "preview": "位置预览（请确认）"
+    },
+    "search": {
+      "added": "位置已添加",
+      "error": "搜索位置失败"
+    },
+    "display": {
+      "title": "位置",
+      "edit": "编辑",
+      "viewOnMap": "在地图中查看",
+      "justNow": "刚刚",
+      "minutesAgo": "分钟前",
+      "hoursAgo": "小时前"
+    },
+    "filter": {
+      "title": "位置",
+      "hasLocation": "有位置",
+      "noLocation": "无位置",
+      "searchSection": "按位置搜索",
+      "keywordPlaceholder": "搜索位置名称...",
+      "clear": "清除位置筛选"
+    },
+    "settings": {
+      "openFailed": "无法打开系统设置"
+    }
+  }
 }

@@ -17,6 +17,7 @@ import { NoteTypeButton } from './Toolbar/NoteTypeButton';
 import { HashtagButton } from './Toolbar/HashtagButton';
 import { ViewModeButton } from './Toolbar/ViewModeButton';
 import { SendButton } from './Toolbar/SendButton';
+import { LocationButton } from './Toolbar/LocationButton';
 import {
   useEditorInit,
   useEditorEvents,
@@ -31,6 +32,7 @@ import { PluginApiStore } from "@/store/plugin/pluginApiStore";
 import { PluginRender } from '@/store/plugin/pluginRender';
 import { IconButton } from "./Toolbar/IconButton";
 import { ResourceReferenceButton } from "./Toolbar/ResourceReferenceButton";
+import { Icon } from '@/components/Common/Iconify/icons';
 
 //https://ld246.com/guide/markdown
 type IProps = {
@@ -154,6 +156,39 @@ const Editor = observer(({ content, onChange, onSend, isSendLoading, originFiles
             <ReferenceRender store={store} />
           </div>
 
+          {/* 位置显示 */}
+          {store.locations && store.locations.length > 0 && (
+            <div className='w-full mb-2'>
+              <div className='flex items-start gap-2 p-2 bg-default-50 rounded-lg border border-default-200'>
+                <Icon icon="solar:map-point-bold" width={16} height={16} className="text-primary mt-0.5 flex-shrink-0" />
+                <div className='flex-1 min-w-0'>
+                  <div className='text-xs text-default-600 mb-1'>
+                    已选择 {store.locations.length} 个位置
+                  </div>
+                  {store.locations.slice(0, 2).map((loc: any, idx: number) => (
+                    <div key={loc.id || idx} className='text-sm text-default-900 truncate'>
+                      {loc.poiName || loc.address}
+                    </div>
+                  ))}
+                  {store.locations.length > 2 && (
+                    <div className='text-xs text-primary'>
+                      还有 {store.locations.length - 2} 个位置...
+                    </div>
+                  )}
+                </div>
+                <button
+                  type='button'
+                  className='text-default-400 hover:text-danger transition-colors flex-shrink-0'
+                  onClick={() => {
+                    store.locations = []
+                  }}
+                >
+                  <Icon icon="solar:close-circle-bold" width={16} height={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Editor Footer Slots */}
           {pluginApi.customEditorFooterSlots
             .filter(slot => {
@@ -190,6 +225,12 @@ const Editor = observer(({ content, onChange, onSend, isSendLoading, originFiles
                 <HashtagButton store={store} content={content} />
                 <ReferenceButton store={store} />
                 <ResourceReferenceButton store={store} />
+                <LocationButton
+                  store={store}
+                  onClick={() => {
+                    eventBus.emit('editor:openLocationPicker')
+                  }}
+                />
                 {blinko.config.value?.mainModelId && (
                   <AIWriteButton />
                 )}

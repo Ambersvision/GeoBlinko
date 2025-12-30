@@ -58,6 +58,7 @@ export class EditorStore {
   noteType!: NoteType;
   currentTagLabel: string = ''
   metadata: any = {};
+  locations: any[] = [];
 
   get showIsEditText() {
     if (this.mode == 'edit') {
@@ -373,13 +374,30 @@ export class EditorStore {
         this.vditor?.insertValue(`\n\n${this.currentTagLabel} `)
         this.onChange?.(this.vditor?.getValue() ?? '')
       }
+
+      const finalMetadata = {
+        ...this.metadata,
+        locations: this.locations
+      };
+
+      console.log("[EditorStore] handleSend called:", {
+        mode: this.mode,
+        locations: this.locations,
+        hasLocations: this.locations.length > 0,
+        metadata: finalMetadata
+      });
+
       await this.onSend?.({
         content: this.vditor?.getValue() ?? '',
         files: this.files.map(i => ({ ...i, uploadPath: i.uploadPromise.value })),
         noteType: this.noteType,
         references: this.references,
-        metadata: this.metadata
+        metadata: finalMetadata
       });
+
+      // 发送后清空位置数据（但不清空文本，因为位置文本已经插入到编辑器中了）
+      // 注意：位置文本已经通过 insertMarkdown 插入到编辑器，这里只需要清空 locations 数组
+      this.locations = [];
       this.clearEditor();
       RootStore.Get(AiStore).isWriting = false;
       eventBus.emit('editor:setFullScreen', false);
@@ -393,6 +411,7 @@ export class EditorStore {
     this.files = [];
     this.references = []
     this.metadata = {};
+    this.locations = [];
   }
 
   constructor() {

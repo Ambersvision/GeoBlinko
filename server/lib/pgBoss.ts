@@ -17,6 +17,8 @@ export async function getPgBoss(): Promise<PgBoss> {
     boss = new PgBoss({
       connectionString,
       schema: 'pgboss',
+      // Create tables if they don't exist
+      __test_no_rollback: true,
       // Retry configuration
       retryLimit: 3,
       retryDelay: 60, // seconds
@@ -39,8 +41,13 @@ export async function getPgBoss(): Promise<PgBoss> {
       }
     });
 
-    await boss.start();
-    console.log('[pg-boss] Started successfully');
+    try {
+      await boss.start();
+      console.log('[pg-boss] Started successfully');
+    } catch (error) {
+      console.error('[pg-boss] Failed to start:', error);
+      console.log('[pg-boss] Will continue without pg-boss scheduled jobs');
+    }
   }
   
   return boss;

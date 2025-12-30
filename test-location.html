@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Location API Test</title>
+</head>
+<body>
+    <h1>高德地图 API 测试</h1>
+    <button onclick="testSearch()">测试搜索位置</button>
+    <button onclick="testReverse()">测试逆地理编码</button>
+    <div id="result" style="margin-top: 20px; white-space: pre-wrap;"></div>
+
+    <script>
+        const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsIm5hbWUiOiJ0ZXN0dXNlciIsInJvbGUiOiJzdXBlcmFkbWluIiwidHdvRmFjdG9yVmVyaWZpZWQiOmZhbHNlLCJleHAiOjE3Njk1ODUyOTgsImlhdCI6MTc2Njk5MzI5OH0.kqfibpSbc2yWeqfkuz_UMUGv29c3r81Ur1tojPwuuRM';
+
+        async function testSearch() {
+            try {
+                const response = await fetch('http://localhost:1111/api/trpc/notes.searchLocation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        0: {
+                            json: {
+                                keyword: '天安门',
+                                city: '北京',
+                                pageSize: 3
+                            }
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testReverse() {
+            try {
+                const response = await fetch('http://localhost:1111/api/trpc/notes.reverseGeocode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        0: {
+                            json: {
+                                latitude: 39.909187,
+                                longitude: 116.397463
+                            }
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

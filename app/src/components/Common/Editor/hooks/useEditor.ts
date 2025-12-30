@@ -31,14 +31,14 @@ export const useEditorInit = (
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  useEffect(() => {
-    const showToolbar = store.isShowEditorToolbar(isPc)
-    if (store.vditor) {
-      store.vditor?.destroy();
-      store.vditor = null
-    }
+    useEffect(() => {
+      const showToolbar = store.isShowEditorToolbar(isPc)
+      if (store.vditor) {
+        store.vditor?.destroy();
+        store.vditor = null
+      }
 
-    // Insert Vditor icons script
+      // Insert Vditor icons script
     if (!document.getElementById('vditor-icons-injected')) {
       const script = document.createElement('script');
       script.id = 'vditor-icons-injected';
