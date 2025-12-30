@@ -1,5 +1,5 @@
 # docker-compose.dev.yml
-#version: '3'
+# version: '3'
 
 networks:
   blinko-network:
@@ -7,7 +7,8 @@ networks:
 
 services:
   blinko-website:
-    container_name: blinko-website
+    image: ambersvision/geoblinko
+    container_name: Geoblinko-website
     build:
       context: .
       args:
@@ -15,8 +16,8 @@ services:
       dockerfile: ./dockerfile
     environment:
       NODE_ENV: production
-      NEXTAUTH_URL: http://localhost:1111
-      NEXT_PUBLIC_BASE_URL: http://localhost:1111
+      NEXTAUTH_URL: http://localhost:2222
+      NEXT_PUBLIC_BASE_URL: http://localhost:2222
       NEXTAUTH_SECRET: Bhtcgroup.0
       DATABASE_URL: postgresql://postgres:Bhtcgroup.0@postgres:5432/postgres
     depends_on:
@@ -24,9 +25,9 @@ services:
         condition: service_healthy
     restart: always
     ports:
-      - 1111:1111
+      - 2222:1111
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://blinko-website:1111/"]
+      test: ["CMD", "wget", "--spider", "http://blinko-website:2222/"]
       interval: 30s 
       timeout: 10s  
       retries: 5
@@ -35,11 +36,11 @@ services:
       - blinko-network
 
   postgres:
-    image: swr.cn-north-4.myhuaweicloud.com/library/postgres:14-alpine
-    container_name: blinko-postgres
+    image: postgres:latest
+    container_name: Geoblinko-postgres
     restart: always
     ports:
-      - 5432:5432
+      - 15432:5432
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
