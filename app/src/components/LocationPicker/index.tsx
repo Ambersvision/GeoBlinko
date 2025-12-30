@@ -240,10 +240,7 @@ export const LocationPicker = observer(({
       // 使用 Markdown 格式：更小字体 + 斜体 + 位置图钉
       let markdown = `<span style="font-size: 0.75em;">*[📍 ${loc.poiName || loc.address}](${mapUrl})*</span>`;
 
-      if (loc.formattedAddress && loc.formattedAddress !== loc.address) {
-        const addressWithDistance = loc.distance ? `${loc.formattedAddress} ${loc.distance}` : loc.formattedAddress;
-        markdown += `\n<span style="font-size: 0.75em;">*[${addressWithDistance}](${mapUrl})*</span>`;
-      }
+      // 隐藏完整地址，只显示短地址
 
       return markdown;
     });
