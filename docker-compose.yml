@@ -9,11 +9,6 @@ services:
   blinko-website:
     image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
-    build:
-      context: .
-      args:
-        USE_MIRROR: "true"  
-      dockerfile: ./dockerfile
     environment:
       NODE_ENV: production
       NEXTAUTH_URL: http://localhost:2222
