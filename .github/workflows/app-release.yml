@@ -320,6 +320,15 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
+      - name: Build Frontend
+        shell: bash
+        run: |
+          cd app
+          echo "Building frontend..."
+          bun run build:no-pwa
+          echo "Frontend build completed"
+          ls -la ../dist/public/
+
       - name: Run Prisma Generate
         run: bun run prisma:generate
 
