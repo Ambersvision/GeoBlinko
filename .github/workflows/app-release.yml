@@ -241,7 +241,7 @@ jobs:
           releaseBody: ${{ github.event.inputs.is-test == 'true' && '' || 'Under construction, full changelog will be updated after build completion...' }}
           releaseDraft: ${{ github.event.inputs.is-test == 'true' }}
           prerelease: ${{ github.event.inputs.is-test == 'true' }}
-          includeUpdaterJson: ${{ github.event.inputs.is-test != 'true' }}
+          includeUpdaterJson: false
 
       - name: Upload test artifacts
         if: github.event.inputs.is-test == 'true'
