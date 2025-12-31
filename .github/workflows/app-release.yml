@@ -218,15 +218,6 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
-      - name: Build frontend with Bun (ensure consistent build environment)
-        shell: bash
-        run: |
-          cd app
-          echo "Building frontend with Bun to ensure consistent minification..."
-          bun run build:no-pwa
-          echo "Frontend build completed"
-          ls -la ../dist/public/ || echo "Build output directory check"
-
       # Using official Tauri Action to build and publish
       - name: Build and Publish Desktop App
         uses: tauri-apps/tauri-action@v0
@@ -234,14 +225,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: 'app'
-          tauriScript: 'bun run tauri'
           args: ${{ matrix.args }}
           tagName: ${{ github.event.inputs.is-test == 'true' && '' || needs.set-version.outputs.version }}
           releaseName: ${{ github.event.inputs.is-test == 'true' && '' || format('Blinko {0}', needs.set-version.outputs.version) }}
           releaseBody: ${{ github.event.inputs.is-test == 'true' && '' || 'Under construction, full changelog will be updated after build completion...' }}
           releaseDraft: ${{ github.event.inputs.is-test == 'true' }}
           prerelease: ${{ github.event.inputs.is-test == 'true' }}
-          includeUpdaterJson: false
 
       - name: Upload test artifacts
         if: github.event.inputs.is-test == 'true'

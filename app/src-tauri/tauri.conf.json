@@ -6,7 +6,6 @@
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1111",
-    "beforeBuildCommand": "bun run build:no-pwa",
     "frontendDist": "../../dist/public"
   },
   "app": {
