@@ -7,7 +7,7 @@ networks:
 
 services:
   blinko-website:
-    image: ambersvision/geoblinko
+    image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
     build:
       context: .
@@ -18,9 +18,9 @@ services:
       NODE_ENV: production
       NEXTAUTH_URL: http://localhost:2222
       NEXT_PUBLIC_BASE_URL: http://localhost:2222
-      NEXTAUTH_SECRET: Bhtcgroup.0
-      DATABASE_URL: postgresql://postgres:Bhtcgroup.0@postgres:5432/postgres
-      AMAP_WEB_API_KEY: ed4327e40666552c8f0d543748b18a38
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-your_nextauth_secret_here}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your_password_here}@postgres:5432/postgres
+      AMAP_WEB_API_KEY: ${AMAP_WEB_API_KEY:-your_amap_api_key_here}
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,11 +44,11 @@ services:
       - 15432:5432
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Bhtcgroup.0
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_password_here}
     healthcheck:
       test:
-        ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+        ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}", "-d", "postgres"]
       interval: 5s
       timeout: 10s
       retries: 5
