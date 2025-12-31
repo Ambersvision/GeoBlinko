@@ -20,6 +20,7 @@ services:
       NEXT_PUBLIC_BASE_URL: http://localhost:2222
       NEXTAUTH_SECRET: Bhtcgroup.0
       DATABASE_URL: postgresql://postgres:Bhtcgroup.0@postgres:5432/postgres
+      AMAP_WEB_API_KEY: ed4327e40666552c8f0d543748b18a38
     depends_on:
       postgres:
         condition: service_healthy
