@@ -84,6 +84,38 @@ export const LocationPicker = observer(({
     [t]
   );
 
+  // WGS84 -> GCJ02（高德坐标系），避免打开高德地图偏移
+  const wgs84ToGcj02 = (lat: number, lng: number) => {
+    const PI = 3.14159265358979324;
+    const A = 6378245.0;
+    const EE = 0.00669342162296594323;
+    const outOfChina = (lat: number, lng: number) => lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+    const transformLat = (x: number, y: number) => {
+      let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+      ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+      ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
+      ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
+      return ret;
+    };
+    const transformLng = (x: number, y: number) => {
+      let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+      ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+      ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
+      ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
+      return ret;
+    };
+    if (outOfChina(lat, lng)) return { latitude: lat, longitude: lng };
+    let dLat = transformLat(lng - 105.0, lat - 35.0);
+    let dLng = transformLng(lng - 105.0, lat - 35.0);
+    const radLat = lat / 180.0 * PI;
+    let magic = Math.sin(radLat);
+    magic = 1 - EE * magic * magic;
+    const sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+    dLng = (dLng * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
+    return { latitude: lat + dLat, longitude: lng + dLng };
+  };
+
   // 获取当前位置 - 直接获取当前位置并添加
   const getCurrentLocation = async () => {
     setIsLoadingLocation(true);
@@ -103,8 +135,10 @@ export const LocationPicker = observer(({
         return;
       }
 
-      // 获取位置
+      // 获取位置 (WGS84)
       const position = await geolocationService.getCurrentPosition();
+      // 转 GCJ02 以便在高德/国内地图上避免偏移
+      const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
       // 显示位置精度信息
       if (position.accuracy) {
@@ -112,7 +146,7 @@ export const LocationPicker = observer(({
         console.log(`位置获取成功: 经度 ${position.longitude}, 纬度 ${position.latitude}, 精度 ${accuracyText} (${Math.round(position.accuracy)}米)`);
       }
 
-      // 先获取当前位置的地址信息
+      // 先获取当前位置的地址信息（服务端已做 WGS->GCJ，传原始 WGS 即可）
       let addressData;
       try {
         addressData = await api.notes.reverseGeocode.mutate({
@@ -125,7 +159,7 @@ export const LocationPicker = observer(({
         return;
       }
 
-      // 获取附近的位置列表
+      // 获取附近的位置列表（服务端也会转换）
       let nearbyResults;
       try {
         nearbyResults = await api.notes.getNearbyLocations.mutate({
@@ -139,14 +173,14 @@ export const LocationPicker = observer(({
         nearbyResults = [];
       }
 
-      // 将当前位置添加到列表的第一个位置
+      // 将当前位置添加到列表的第一个位置（存 GCJ 坐标，打开高德不再偏移）
       const currentLoc = {
         id: `current_${Date.now()}`,
         name: addressData.poiName || addressData.address || '当前位置',
         address: addressData.address || '',
         formattedAddress: addressData.formattedAddress || '',
-        latitude: position.latitude,
-        longitude: position.longitude,
+        latitude: gcj.latitude,
+        longitude: gcj.longitude,
         distance: '0米',
         type: '当前位置'
       };
