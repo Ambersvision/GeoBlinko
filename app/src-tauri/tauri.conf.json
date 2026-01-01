@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Blinko",
+  "productName": "GeoBlinko",
   "version": "1.10.0",
   "identifier": "com.blinko.app",
   "build": {
@@ -15,7 +15,7 @@
     },
     "windows": [
       {
-        "title": "Blinko",
+        "title": "GeoBlinko",
         "width": 1920,
         "height": 1080,
         "minWidth": 600,

@@ -1,0 +1,62 @@
+version: "3.8"
+
+networks:
+  geoblinko-net:
+    driver: bridge
+
+volumes:
+  geoblinko_pgdata18:
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: Geoblinko-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "15432:5432"
+    volumes:
+      - geoblinko_pgdata18:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - geoblinko-net
+
+  blinko-website:
+    image: geoblinko:local
+    build:
+      context: .
+      dockerfile: dockerfile
+      args:
+        USE_MIRROR: "true"
+    container_name: Geoblinko-website
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXTAUTH_URL: "http://localhost:2222"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
+      NEXTAUTH_SECRET: "change-me-please-8b6d5f7c"
+      AMAP_WEB_API_KEY: "ed4327e40666552c8f0d543748b18a38"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres"
+    ports:
+      - "2222:1111"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:1111/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - geoblinko-net

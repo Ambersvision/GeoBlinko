@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Spinner } from '@heroui/react';
 import { Icon } from '@/components/Common/Iconify/icons';
@@ -50,6 +50,14 @@ export const LocationPicker = observer(({
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<any | null>(null);
   const [nearbyLocations, setNearbyLocations] = useState<any[]>([]);
+  const [mapSelection, setMapSelection] = useState<LocationData | null>(initialLocations[0] ?? null);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const geocoderRef = useRef<any>(null);
+  const amapKey = (import.meta as any).env?.NEXT_PUBLIC_AMAP_WEB_API_KEY || (import.meta as any).env?.VITE_AMAP_WEB_API_KEY || (import.meta as any).env?.AMAP_WEB_API_KEY;
 
   // 当 initialLocations 变化时更新 locations 状态
   useEffect(() => {
@@ -83,6 +91,129 @@ export const LocationPicker = observer(({
     }, 300),
     [t]
   );
+
+  const loadAmap = useCallback(async () => {
+    if (typeof window === 'undefined') return null;
+    if ((window as any).AMap) return (window as any).AMap;
+    if (!amapKey) {
+      throw new Error('缺少高德 Web API Key，请配置 NEXT_PUBLIC_AMAP_WEB_API_KEY');
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector('script[data-amap="v2"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('AMap load error')), { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.setAttribute('data-amap', 'v2');
+      script.src = `https://webapi.amap.com/maps?v=2.0&key=${amapKey}`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('AMap load error'));
+      document.head.appendChild(script);
+    });
+
+    return (window as any).AMap;
+  }, [amapKey]);
+
+  const focusMapOnLocation = useCallback((loc: { latitude: number; longitude: number }) => {
+    if (!mapInstanceRef.current || !markerRef.current) return;
+    const center: [number, number] = [loc.longitude, loc.latitude];
+    markerRef.current.setPosition(center);
+    mapInstanceRef.current.setZoomAndCenter(16, center);
+  }, []);
+
+  const reverseGeocodeByJs = useCallback(async (lng: number, lat: number) => {
+    if (!geocoderRef.current) return null;
+    return await new Promise<any>((resolve) => {
+      geocoderRef.current.getAddress([lng, lat], (status: string, result: any) => {
+        if (status === 'complete' && result?.regeocode) {
+          resolve(result.regeocode);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  }, []);
+
+  const handleMarkerDrag = useCallback(async (lnglat: any) => {
+    if (!lnglat) return;
+    const lng = lnglat?.lng || lnglat?.getLng?.();
+    const lat = lnglat?.lat || lnglat?.getLat?.();
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setCenter([lng, lat]);
+    }
+    const geocode = await reverseGeocodeByJs(lng, lat);
+    setMapSelection({
+      id: `map_${Date.now()}`,
+      latitude: lat,
+      longitude: lng,
+      address: geocode?.formattedAddress || '',
+      formattedAddress: geocode?.formattedAddress || '',
+      poiName: geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点',
+      distance: undefined,
+      createdAt: new Date().toISOString()
+    });
+  }, [reverseGeocodeByJs]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let disposed = false;
+    const initMap = async () => {
+      setMapLoading(true);
+      setMapError(null);
+      try {
+        const AMap = await loadAmap();
+        if (!AMap || disposed) return;
+        const base = mapSelection || locations[0] || nearbyLocations[0];
+        const centerLng = base?.longitude ?? 116.397428;
+        const centerLat = base?.latitude ?? 39.90923;
+        mapInstanceRef.current = new AMap.Map(mapContainerRef.current, {
+          zoom: 15,
+          center: [centerLng, centerLat],
+          viewMode: '3D',
+          resizeEnable: true
+        });
+        geocoderRef.current = new AMap.Geocoder({ radius: 1000 });
+        markerRef.current = new AMap.Marker({
+          position: [centerLng, centerLat],
+          draggable: true,
+          cursor: 'move'
+        });
+        markerRef.current.on('dragend', (e: any) => handleMarkerDrag(e?.lnglat));
+        mapInstanceRef.current.add(markerRef.current);
+      } catch (error: any) {
+        console.error('Init map failed:', error);
+        setMapError(error?.message || '地图加载失败');
+      } finally {
+        if (!disposed) setMapLoading(false);
+      }
+    };
+
+    initMap();
+    return () => {
+      disposed = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy?.();
+      }
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+      geocoderRef.current = null;
+    };
+  }, [isOpen, loadAmap, handleMarkerDrag]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapSelection) return;
+    focusMapOnLocation(mapSelection);
+  }, [mapSelection, focusMapOnLocation]);
+
+  useEffect(() => {
+    if (!mapSelection && locations.length > 0) {
+      setMapSelection(locations[0]);
+    }
+  }, [locations, mapSelection]);
 
   // WGS84 -> GCJ02（高德坐标系），避免打开高德地图偏移
   const wgs84ToGcj02 = (lat: number, lng: number) => {
@@ -187,6 +318,23 @@ export const LocationPicker = observer(({
 
       // 设置附近位置列表，当前位置排在第一位
       setNearbyLocations([currentLoc, ...nearbyResults]);
+      setMapSelection({
+        id: currentLoc.id,
+        latitude: currentLoc.latitude,
+        longitude: currentLoc.longitude,
+        address: currentLoc.address,
+        formattedAddress: currentLoc.formattedAddress,
+        poiName: currentLoc.name,
+        distance: currentLoc.distance,
+        createdAt: new Date().toISOString()
+      });
+      focusMapOnLocation({
+        latitude: currentLoc.latitude,
+        longitude: currentLoc.longitude,
+        address: currentLoc.address,
+        formattedAddress: currentLoc.formattedAddress,
+        poiName: currentLoc.name
+      });
       ToastPlugin.success('找到附近位置，请选择');
 
     } catch (error: any) {
@@ -217,6 +365,62 @@ export const LocationPicker = observer(({
     }
   };
 
+  const jumpMapToKeyword = async () => {
+    if (!searchKeyword.trim()) {
+      ToastPlugin.error('请输入地点后再跳转地图');
+      return;
+    }
+    try {
+      setMapLoading(true);
+      const results = searchResults.length > 0
+        ? searchResults
+        : await api.notes.searchLocation.mutate({ keyword: searchKeyword.trim(), pageSize: 1 });
+      if (!results?.length) {
+        ToastPlugin.error('未找到匹配位置');
+        return;
+      }
+      const target = results[0];
+      focusMapOnLocation({
+        latitude: target.latitude,
+        longitude: target.longitude,
+        address: target.address,
+        formattedAddress: target.formattedAddress,
+        poiName: target.name
+      });
+      setMapSelection({
+        id: `map_${Date.now()}`,
+        latitude: target.latitude,
+        longitude: target.longitude,
+        address: target.address || '',
+        formattedAddress: target.formattedAddress || '',
+        poiName: target.name,
+        distance: target.distance,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('jumpMapToKeyword error:', error);
+      ToastPlugin.error('地图跳转失败');
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  const addMapSelectionToList = () => {
+    if (!mapSelection) return;
+    const exists = locations.some(loc => Math.abs(loc.latitude - mapSelection.latitude) < 1e-6 && Math.abs(loc.longitude - mapSelection.longitude) < 1e-6);
+    const newLocation: LocationData = {
+      ...mapSelection,
+      id: mapSelection.id || `loc_${Date.now()}`,
+      createdAt: mapSelection.createdAt || new Date().toISOString()
+    };
+    setLocations(exists ? locations : [...locations, newLocation]);
+    if (!exists) {
+      ToastPlugin.success('已将地图位置加入已选');
+    } else {
+      ToastPlugin.success('该位置已在列表中');
+    }
+  };
+
   // 添加搜索结果中的位置
   const addSearchResult = (result: any) => {
     const newLocation: LocationData = {
@@ -233,6 +437,8 @@ export const LocationPicker = observer(({
     setLocations([...locations, newLocation]);
     setSearchKeyword('');
     setSearchResults([]);
+    setMapSelection(newLocation);
+    focusMapOnLocation(newLocation);
   };
 
   // 添加附近位置
@@ -250,6 +456,8 @@ export const LocationPicker = observer(({
 
     setLocations([...locations, newLocation]);
     setNearbyLocations([]);
+    setMapSelection(newLocation);
+    focusMapOnLocation(newLocation);
     ToastPlugin.success('位置已添加');
   };
 
@@ -306,6 +514,7 @@ export const LocationPicker = observer(({
     setSearchResults([]);
     setSelectedLocation(null);
     setNearbyLocations([]);
+    setMapSelection(initialLocations[0] ?? null);
     onClose();
   };
 
@@ -401,6 +610,50 @@ export const LocationPicker = observer(({
                 ))}
               </div>
             )}
+
+            {/* 互动地图 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-default-600">地图选点（拖拽/跳转）</h4>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="flat" onPress={() => mapSelection && focusMapOnLocation(mapSelection)} isDisabled={!mapSelection || mapLoading}>
+                    对准当前选点
+                  </Button>
+                  <Button size="sm" color="primary" onPress={addMapSelectionToList} isDisabled={!mapSelection}>
+                    将地图位置加入已选
+                  </Button>
+                </div>
+              </div>
+              <div className="relative w-full h-72 rounded-lg border border-default-200 overflow-hidden bg-default-50" ref={mapContainerRef}>
+                {mapLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+                    <Spinner label="地图加载中..." color="primary" />
+                  </div>
+                )}
+                {mapError && (
+                  <div className="absolute inset-0 flex items-center justify-center text-danger text-sm bg-background/80">
+                    {mapError}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="输入地点后点击跳转地图"
+                  value={searchKeyword}
+                  onValueChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
+                  startContent={<Icon icon="solar:magnifier-bold" width={18} height={18} className="text-default-400" />}
+                />
+                <Button color="primary" variant="flat" onPress={jumpMapToKeyword} isLoading={mapLoading}>
+                  地图跳转
+                </Button>
+              </div>
+              {mapSelection && (
+                <p className="text-xs text-default-500">
+                  当前选点：{mapSelection.poiName || mapSelection.address || '未命名位置'}（{mapSelection.latitude.toFixed(6)}, {mapSelection.longitude.toFixed(6)}）
+                </p>
+              )}
+            </div>
 
             {/* 附近位置列表 */}
             {nearbyLocations.length > 0 && (
