@@ -16,10 +16,11 @@ type IProps = {
   height?: number,
   isInDialog?: boolean,
   withoutOutline?: boolean,
-  initialData?: { file?: File, text?: string }
+  initialData?: { file?: File, text?: string },
+  autoOpenLocationPicker?: boolean
 }
 
-export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDialog, withoutOutline, initialData }: IProps) => {
+export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDialog, withoutOutline, initialData, autoOpenLocationPicker }: IProps) => {
   const isCreateMode = mode == 'create'
   const blinko = RootStore.Get(BlinkoStore)
   const editorRef = useRef<any>(null)
@@ -119,20 +120,19 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     }
   }, [mode])
 
-  // 监听打开位置选择器事件（仅在编辑对话框模式下）
+  // 自动打开位置选择器（用于编辑位置的场景）
   useEffect(() => {
-    const handleOpenLocationPicker = () => {
-      // 只在编辑对话框模式下响应位置选择器事件
-      // 排除主页上的创建模式编辑器
-      if (!isCreateMode && isInDialog) {
-        setIsLocationPickerOpen(true)
-      }
+    if (autoOpenLocationPicker) {
+      console.log('[BlinkoEditor] Auto-opening location picker');
+      setIsLocationPickerOpen(true);
     }
-    eventBus.on('editor:openLocationPicker', handleOpenLocationPicker)
-    return () => {
-      eventBus.off('editor:openLocationPicker', handleOpenLocationPicker)
-    }
-  }, [isCreateMode, isInDialog])
+  }, [autoOpenLocationPicker])
+
+  // 处理位置按钮点击
+  const handleLocationButtonPress = () => {
+    console.log('[BlinkoEditor] Location button pressed, opening picker');
+    setIsLocationPickerOpen(true);
+  }
 
   // 处理插入位置文本到编辑器
   const handleInsertLocationText = (text: string) => {
@@ -155,6 +155,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
       }}
       withoutOutline={withoutOutline}
       initialData={initialData}
+      onLocationButtonPress={handleLocationButtonPress}
       onHeightChange={() => {
         onHeightChange?.(editorRef.current?.clientHeight ?? 75)
         if (editorRef.current) {

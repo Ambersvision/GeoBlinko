@@ -47,10 +47,11 @@ type IProps = {
   originReference?: number[],
   hiddenToolbar?: boolean,
   withoutOutline?: boolean,
-  initialData?: { file?: File, text?: string }
+  initialData?: { file?: File, text?: string },
+  onLocationButtonPress?: () => void
 }
 
-const Editor = observer(({ content, onChange, onSend, isSendLoading, originFiles, originReference = [], mode, onHeightChange, hiddenToolbar = false, withoutOutline = false, initialData }: IProps) => {
+const Editor = observer(({ content, onChange, onSend, isSendLoading, originFiles, originReference = [], mode, onHeightChange, hiddenToolbar = false, withoutOutline = false, initialData, onLocationButtonPress }: IProps) => {
   const cardRef = React.useRef(null)
   const isPc = useMediaQuery('(min-width: 768px)')
   const store = useLocalObservable(() => new EditorStore())
@@ -227,9 +228,7 @@ const Editor = observer(({ content, onChange, onSend, isSendLoading, originFiles
                 <ResourceReferenceButton store={store} />
                 <LocationButton
                   store={store}
-                  onClick={() => {
-                    eventBus.emit('editor:openLocationPicker')
-                  }}
+                  onClick={onLocationButtonPress}
                 />
                 {blinko.config.value?.mainModelId && (
                   <AIWriteButton />

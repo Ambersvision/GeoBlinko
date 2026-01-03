@@ -202,15 +202,10 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
                     locations={blinkoItem.metadata.locations}
                     isEditable={!isShareMode}
                     onEdit={() => {
-                      // 编辑位置 - 先打开编辑对话框，然后触发位置选择器
+                      // 编辑位置 - 直接打开编辑对话框并自动打开位置选择器
                       if (isShareMode) return;
                       blinko.curSelectedNote = _.cloneDeep(blinkoItem);
-                      // 打开编辑对话框
-                      ShowEditBlinkoModel('5xl', 'edit');
-                      // 延迟触发位置选择器，确保对话框已打开
-                      setTimeout(() => {
-                        eventBus.emit('editor:openLocationPicker');
-                      }, 300);
+                      ShowEditBlinkoModel('5xl', 'edit', undefined, true);
                     }}
                     compact={!isExpanded}
                   />

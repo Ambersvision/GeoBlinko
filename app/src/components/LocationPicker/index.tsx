@@ -57,12 +57,17 @@ export const LocationPicker = observer(({
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
-  const hasAutoFetchedRef = useRef(false);
   const amapKey = (import.meta as any).env?.NEXT_PUBLIC_AMAP_WEB_API_KEY || (import.meta as any).env?.VITE_AMAP_WEB_API_KEY || (import.meta as any).env?.AMAP_WEB_API_KEY;
+  const locationFetchedRef = useRef(false);
 
   // 当 initialLocations 变化时更新 locations 状态
   useEffect(() => {
+    console.log('[LocationPicker] initialLocations changed:', initialLocations);
     setLocations(initialLocations);
+    // 如果有位置数据，更新地图选择到第一个位置
+    if (initialLocations.length > 0) {
+      setMapSelection(initialLocations[0]);
+    }
   }, [initialLocations]);
 
   // 权限对话框
@@ -232,7 +237,11 @@ export const LocationPicker = observer(({
   }, [isOpen, loadAmap, handleMarkerDrag]);
 
   useEffect(() => {
-    if (!mapInstanceRef.current || !mapSelection) return;
+    if (!mapInstanceRef.current || !mapSelection) {
+      console.log('[LocationPicker] Skipping map update - map not ready or no selection');
+      return;
+    }
+    console.log('[LocationPicker] Updating map to:', mapSelection);
     focusMapOnLocation(mapSelection);
   }, [mapSelection, focusMapOnLocation]);
 
@@ -242,16 +251,14 @@ export const LocationPicker = observer(({
     }
   }, [locations, mapSelection]);
 
-  // 自动获取当前位置
+  // 自动获取当前位置（每次打开都重新获取）
   useEffect(() => {
-    if (isOpen && !hasAutoFetchedRef.current) {
-      hasAutoFetchedRef.current = true;
+    if (isOpen && !mapLoading) {
+      console.log('[LocationPicker] Map is ready, fetching current location...');
+      // 等待地图初始化完成后获取当前位置
       getCurrentLocation();
     }
-    if (!isOpen) {
-      hasAutoFetchedRef.current = false;
-    }
-  }, [isOpen]);
+  }, [isOpen, mapLoading]);
 
   // WGS84 -> GCJ02（高德坐标系），避免打开高德地图偏移
   const wgs84ToGcj02 = (lat: number, lng: number) => {
@@ -356,7 +363,7 @@ export const LocationPicker = observer(({
 
       // 设置附近位置列表，当前位置排在第一位
       setNearbyLocations([currentLoc, ...nearbyResults]);
-      setMapSelection({
+      const newMapSelection = {
         id: currentLoc.id,
         latitude: currentLoc.latitude,
         longitude: currentLoc.longitude,
@@ -365,7 +372,9 @@ export const LocationPicker = observer(({
         poiName: currentLoc.name,
         distance: currentLoc.distance,
         createdAt: new Date().toISOString()
-      });
+      };
+      console.log('[LocationPicker] Setting map selection to current location:', newMapSelection);
+      setMapSelection(newMapSelection);
       focusMapOnLocation({
         latitude: currentLoc.latitude,
         longitude: currentLoc.longitude
