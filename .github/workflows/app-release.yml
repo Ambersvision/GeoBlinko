@@ -425,10 +425,21 @@ jobs:
   update-release:
     if: github.event.inputs.is-test != 'true' && !cancelled() && needs.generate-changelog.result == 'success'
     runs-on: ubuntu-latest
-    needs: [set-version, generate-changelog]
+    needs: [set-version, generate-changelog, publish-android]
     permissions:
       contents: write
     steps:
+      - name: Download Android APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: blinko-android-${{ needs.set-version.outputs.version }}
+          path: ./apk
+      
+      - name: List downloaded files
+        run: |
+          echo "Downloaded files:"
+          ls -la ./apk/
+      
       - name: Update GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -436,6 +447,7 @@ jobs:
           body: ${{ needs.generate-changelog.outputs.changelog }}
           draft: false
           prerelease: false
+          files: ./apk/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
 
