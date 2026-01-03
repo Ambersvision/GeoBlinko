@@ -15,28 +15,48 @@ ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-li
 ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
-# Copy Project Files
-COPY . .
+# Copy dependency files first for better caching
+COPY package.json bun.lock turbo.json tsconfig.json ./
+
+# Copy workspace directories needed for bun install
+COPY app/package.json app/
+COPY server/package.json server/
+COPY shared/package.json shared/
+COPY app/tauri-plugin-blinko app/tauri-plugin-blinko/
 
 # Configure Mirror Based on USE_MIRROR Parameter
 RUN if [ "$USE_MIRROR" = "true" ]; then \
         echo "Using Taobao Mirror to Install Dependencies" && \
-        echo '{ "install": { "registry": "https://registry.npmmirror.com" } }' > .bunfig.json; \
+        echo "registry=https://registry.npmmirror.com" > .npmrc; \
     else \
         echo "Using Default Mirror to Install Dependencies"; \
     fi
 
-# Pre-install Sharp for ARM architecture
-RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-        echo "Detected ARM architecture, installing sharp platform-specific dependencies..." && \
-        mkdir -p /tmp/sharp-cache && \
-        export SHARP_CACHE_DIRECTORY=/tmp/sharp-cache && \
-        bun install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
-        bun install --force @img/sharp-linux-arm64 --no-save; \
-    fi
+# Install Dependencies (Cached Layer)
+RUN bun install --unsafe-perm --ignore-scripts || true
 
-# Install Dependencies and Build App
-RUN bun install --unsafe-perm
+# Cache breaker for source code changes
+ARG CACHEBUST=1
+
+# Invalidate cache for source code
+RUN test "$CACHEBUST" = "1" || echo "Cache bust: $CACHEBUST"
+
+# Copy Source Code (This layer changes when source code changes)
+COPY . .
+
+# Clean Turborepo cache when CACHEBUST is not 1
+RUN if [ "$CACHEBUST" != "1" ]; then rm -rf node_modules/.cache; fi
+
+# Generate Prisma Client
+RUN bunx prisma generate
+
+# Build App (These layers will be rebuilt when source code changes)
+RUN if [ "$CACHEBUST" != "1" ]; then \
+        NODE_OPTIONS="--max-old-space-size=8192" TURBO_CACHE_DISABLED=true bun run build:web; \
+    else \
+        NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \
+    fi
+RUN bun run build:seed
 RUN bunx prisma generate
 RUN bun run build:web
 RUN bun run build:seed

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 启用应用沙盒（推荐） -->
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+
+  <!-- 文件访问权限：精确控制，避免频繁弹窗 -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <key>com.apple.security.files.downloads.read-write</key>
+  <true/>
+  <key>com.apple.security.files.pictures.read-write</key>
+  <true/>
+  <key>com.apple.security.files.documents.read-write</key>
+  <true/>
+
+  <!-- Bookmarks：持久化用户授权，避免重复提示 -->
+  <key>com.apple.security.files.bookmarks.app-scope</key>
+  <true/>
+  <key>com.apple.security.files.bookmarks.document-scope</key>
+  <true/>
+
+  <!-- 网络访问权限 -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.network.server</key>
+  <true/>
+
+  <!-- 音频设备访问（地理位置等功能可能需要） -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+
+  <!-- 位置服务访问 -->
+  <key>com.apple.security.personal-information.location</key>
+  <true/>
+</dict>
+</plist>

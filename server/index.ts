@@ -67,26 +67,19 @@ process.on('exit', (code) => {
  * This sets up pg-boss and registers all job workers
  */
 async function initializeJobs() {
-  try {
-    console.log('Initializing pg-boss scheduled jobs...');
-
-    // TEMPORARY: Disable pg-boss initialization until tables are properly set up
-    // await getPgBoss();
-    console.log('[Temporarily skipping pg-boss initialization]');
-
-    // Initialize all jobs
-    // These will restore their schedules from the database if they were running
-    // await ArchiveJob.initialize();
-    // await DBJob.initialize();
-    // await RebuildEmbeddingJob.initialize();
-    // await RecommandJob.initialize();
-    // await AIScheduledTaskJob.initialize();
-
-    console.log('Scheduled jobs temporarily disabled');
-  } catch (error) {
-    console.error('Failed to initialize scheduled jobs:', error);
-    // Don't throw - allow server to start even if jobs fail to initialize
-  }
+  // Disabled pg-boss initialization
+  // All scheduled jobs are currently disabled
+  // If needed in the future, uncomment the following:
+  // try {
+  //   await getPgBoss();
+  //   await ArchiveJob.initialize();
+  //   await DBJob.initialize();
+  //   await RebuildEmbeddingJob.initialize();
+  //   await RecommandJob.initialize();
+  //   await AIScheduledTaskJob.initialize();
+  // } catch (error) {
+  //   console.error('Failed to initialize scheduled jobs:', error);
+  // }
 }
 
 // Server configuration

@@ -29,6 +29,13 @@
     "fs:default",
     "dialog:default",
     "fs:allow-app-write",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-dir",
+    "fs:allow-write-dir",
+    "fs:allow-exists",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
     "blinko:default",
     "core:window:allow-center",
     "geolocation:default",
@@ -40,6 +47,18 @@
         },
         {
           "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$APPDATA"
+        },
+        {
+          "path": "$APPDATA/**"
+        },
+        {
+          "path": "$APPDATA/.blinko"
+        },
+        {
+          "path": "$APPDATA/.blinko/**"
         }
       ]
     },

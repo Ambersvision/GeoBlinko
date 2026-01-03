@@ -57,6 +57,7 @@ export const LocationPicker = observer(({
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
+  const hasAutoFetchedRef = useRef(false);
   const amapKey = (import.meta as any).env?.NEXT_PUBLIC_AMAP_WEB_API_KEY || (import.meta as any).env?.VITE_AMAP_WEB_API_KEY || (import.meta as any).env?.AMAP_WEB_API_KEY;
 
   // 当 initialLocations 变化时更新 locations 状态
@@ -102,8 +103,13 @@ export const LocationPicker = observer(({
     await new Promise<void>((resolve, reject) => {
       const existing = document.querySelector('script[data-amap="v2"]');
       if (existing) {
-        existing.addEventListener('load', () => resolve(), { once: true });
-        existing.addEventListener('error', () => reject(new Error('AMap load error')), { once: true });
+        // 检查脚本是否已加载完成
+        if ((window as any).AMap) {
+          resolve();
+        } else {
+          existing.addEventListener('load', () => resolve(), { once: true });
+          existing.addEventListener('error', () => reject(new Error('AMap load error')), { once: true });
+        }
         return;
       }
       const script = document.createElement('script');
@@ -167,16 +173,37 @@ export const LocationPicker = observer(({
       try {
         const AMap = await loadAmap();
         if (!AMap || disposed) return;
+
+        // 等待AMap完全初始化
+        await new Promise<void>((resolve) => setTimeout(resolve, 200));
+
         const base = mapSelection || locations[0] || nearbyLocations[0];
         const centerLng = base?.longitude ?? 116.397428;
         const centerLat = base?.latitude ?? 39.90923;
+
+        // 先创建地图实例
         mapInstanceRef.current = new AMap.Map(mapContainerRef.current, {
           zoom: 15,
           center: [centerLng, centerLat],
           viewMode: '3D',
           resizeEnable: true
         });
-        geocoderRef.current = new AMap.Geocoder({ radius: 1000 });
+
+        // 使用AMap.plugin确保Geocoder插件加载
+        AMap.plugin('AMap.Geocoder', () => {
+          if (disposed) return;
+          try {
+            geocoderRef.current = new AMap.Geocoder({ radius: 1000 });
+            console.log('Geocoder initialized successfully');
+          } catch (error) {
+            console.error('Geocoder initialization failed:', error);
+            setMapError('地理编码器加载失败，请刷新重试');
+          }
+        });
+
+        // 等待Geocoder初始化
+        await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
         markerRef.current = new AMap.Marker({
           position: [centerLng, centerLat],
           draggable: true,
@@ -214,6 +241,17 @@ export const LocationPicker = observer(({
       setMapSelection(locations[0]);
     }
   }, [locations, mapSelection]);
+
+  // 自动获取当前位置
+  useEffect(() => {
+    if (isOpen && !hasAutoFetchedRef.current) {
+      hasAutoFetchedRef.current = true;
+      getCurrentLocation();
+    }
+    if (!isOpen) {
+      hasAutoFetchedRef.current = false;
+    }
+  }, [isOpen]);
 
   // WGS84 -> GCJ02（高德坐标系），避免打开高德地图偏移
   const wgs84ToGcj02 = (lat: number, lng: number) => {
@@ -330,10 +368,7 @@ export const LocationPicker = observer(({
       });
       focusMapOnLocation({
         latitude: currentLoc.latitude,
-        longitude: currentLoc.longitude,
-        address: currentLoc.address,
-        formattedAddress: currentLoc.formattedAddress,
-        poiName: currentLoc.name
+        longitude: currentLoc.longitude
       });
       ToastPlugin.success('找到附近位置，请选择');
 
@@ -382,10 +417,7 @@ export const LocationPicker = observer(({
       const target = results[0];
       focusMapOnLocation({
         latitude: target.latitude,
-        longitude: target.longitude,
-        address: target.address,
-        formattedAddress: target.formattedAddress,
-        poiName: target.name
+        longitude: target.longitude
       });
       setMapSelection({
         id: `map_${Date.now()}`,
@@ -438,7 +470,10 @@ export const LocationPicker = observer(({
     setSearchKeyword('');
     setSearchResults([]);
     setMapSelection(newLocation);
-    focusMapOnLocation(newLocation);
+    focusMapOnLocation({
+      latitude: result.latitude,
+      longitude: result.longitude
+    });
   };
 
   // 添加附近位置
@@ -457,7 +492,10 @@ export const LocationPicker = observer(({
     setLocations([...locations, newLocation]);
     setNearbyLocations([]);
     setMapSelection(newLocation);
-    focusMapOnLocation(newLocation);
+    focusMapOnLocation({
+      latitude: location.latitude,
+      longitude: location.longitude
+    });
     ToastPlugin.success('位置已添加');
   };
 
@@ -536,29 +574,86 @@ export const LocationPicker = observer(({
         onClose={handleClose}
         size="2xl"
         backdrop="blur"
-        scrollBehavior="inside"
+        scrollBehavior="outside"
         hideCloseButton
-        classNames={{
-          wrapper: "z-[99999]",
-          backdrop: "z-[99998]"
-        }}
       >
         <ModalContent>
-          <ModalHeader className="flex flex-col gap-1 pb-0">
-            <div className="flex items-center justify-between">
+          <ModalHeader className="flex flex-col gap-0">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold">
                 {t('location.picker.title')}
               </h3>
-              <Button 
-                isIconOnly 
-                variant="light" 
+              <Button
+                isIconOnly
+                variant="light"
                 size="sm"
                 onPress={handleClose}
               >
                 <Icon icon="solar:close-circle-bold" width={20} height={20} />
               </Button>
             </div>
-            <p className="text-sm text-default-500">
+
+            {/* 快速操作区域：移到页面顶端 */}
+            <div className="space-y-3 pb-4 border-b border-default-200">
+              {/* 获取当前位置按钮 */}
+              <div className="space-y-2">
+                <Button
+                  variant="flat"
+                  color="primary"
+                  size="lg"
+                  className="w-full"
+                  onPress={getCurrentLocation}
+                  isLoading={isLoadingLocation}
+                  startContent={
+                    !isLoadingLocation ? (
+                      <Icon icon="solar:crosshairs-bold" width={20} height={20} />
+                    ) : undefined
+                  }
+                >
+                  {isLoadingLocation
+                    ? t('location.currentLocation.loading')
+                    : t('location.currentLocation.button')
+                  }
+                </Button>
+                <p className="text-xs text-default-400">
+                  {t('location.currentLocation.hint')}
+                </p>
+              </div>
+
+              {/* 搜索框和地图跳转按钮 */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="输入地点后点击跳转地图"
+                  value={searchKeyword}
+                  onValueChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
+                  startContent={<Icon icon="solar:magnifier-bold" width={18} height={18} className="text-default-400" />}
+                  endContent={
+                    isLoading ? (
+                      <Spinner size="sm" />
+                    ) : searchKeyword ? (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => {
+                          setSearchKeyword('');
+                          setSearchResults([]);
+                        }}
+                      >
+                        <Icon icon="solar:close-circle-bold" width={16} height={16} />
+                      </Button>
+                    ) : null
+                  }
+                />
+                <Button color="primary" variant="flat" onPress={jumpMapToKeyword} isLoading={mapLoading}>
+                  地图跳转
+                </Button>
+              </div>
+            </div>
+
+            <p className="text-sm text-default-500 pt-3">
               {t('location.picker.subtitle')}
             </p>
           </ModalHeader>
@@ -636,18 +731,6 @@ export const LocationPicker = observer(({
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="输入地点后点击跳转地图"
-                  value={searchKeyword}
-                  onValueChange={handleSearchChange}
-                  onKeyDown={handleSearchKeyDown}
-                  startContent={<Icon icon="solar:magnifier-bold" width={18} height={18} className="text-default-400" />}
-                />
-                <Button color="primary" variant="flat" onPress={jumpMapToKeyword} isLoading={mapLoading}>
-                  地图跳转
-                </Button>
-              </div>
               {mapSelection && (
                 <p className="text-xs text-default-500">
                   当前选点：{mapSelection.poiName || mapSelection.address || '未命名位置'}（{mapSelection.latitude.toFixed(6)}, {mapSelection.longitude.toFixed(6)}）
@@ -719,113 +802,6 @@ export const LocationPicker = observer(({
                 </div>
               </div>
             )}
-
-            {/* 获取当前位置按钮 */}
-            <Button
-              variant="flat"
-              color="primary"
-              size="lg"
-              className="w-full"
-              onPress={getCurrentLocation}
-              isLoading={isLoadingLocation}
-              startContent={
-                !isLoadingLocation ? (
-                  <Icon icon="solar:crosshairs-bold" width={20} height={20} />
-                ) : undefined
-              }
-            >
-              {isLoadingLocation
-                ? t('location.currentLocation.loading')
-                : t('location.currentLocation.button')
-              }
-            </Button>
-            <p className="text-xs text-default-400 mt-2">
-              {t('location.currentLocation.hint')}
-            </p>
-
-            {/* 搜索地理位置 */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-default-600">
-                {t('location.picker.searchTitle')}
-              </h4>
-              <Input
-                placeholder={t('location.picker.searchPlaceholder')}
-                value={searchKeyword}
-                onValueChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
-                startContent={
-                  <Icon icon="solar:magnifier-bold" width={18} height={18} className="text-default-400" />
-                }
-                endContent={
-                  isLoading ? (
-                    <Spinner size="sm" />
-                  ) : searchKeyword ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      onPress={() => {
-                        setSearchKeyword('');
-                        setSearchResults([]);
-                      }}
-                    >
-                      <Icon icon="solar:close-circle-bold" width={16} height={16} />
-                    </Button>
-                  ) : null
-                }
-              />
-
-              {/* 搜索结果 - 显示为嵌入式的列表 */}
-              {searchResults.length > 0 && (
-                <div className="border border-default-200 rounded-lg bg-background overflow-hidden">
-                  <div className="px-3 py-2 bg-default-100 border-b border-default-200">
-                    <p className="text-xs text-default-600 font-medium">搜索结果 ({searchResults.length})</p>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {searchResults.map((result, index) => (
-                      <div
-                        key={`${result.id}-${index}`}
-                        className="flex items-start gap-3 p-3 hover:bg-default-100 cursor-pointer transition-colors border-b border-default-100 last:border-b-0"
-                        onClick={() => {
-                          console.log('[LocationPicker] Search result clicked:', result);
-                          addSearchResult(result);
-                        }}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          <Icon
-                            icon="solar:map-point-bold"
-                            width={20}
-                            height={20}
-                            className="text-default-500"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-default-900 truncate">
-                            {result.name}
-                          </p>
-                          <p className="text-sm text-default-500 truncate">
-                            {result.formattedAddress}
-                          </p>
-                          {result.distance && (
-                            <p className="text-xs text-primary-500 mt-1">
-                              {result.distance}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0">
-                          <Icon
-                            icon="solar:add-circle-bold"
-                            width={24}
-                            height={24}
-                            className="text-primary"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </ModalBody>
           
           <ModalFooter>

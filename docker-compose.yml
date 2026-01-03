@@ -5,11 +5,11 @@ networks:
     driver: bridge
 
 volumes:
-  geoblinko_pgdata18:
+  geoblinko_pgdata16:
 
 services:
   postgres:
-    image: postgres:18
+    image: postgres:16
     container_name: Geoblinko-postgres
     restart: always
     environment:
@@ -19,7 +19,7 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - geoblinko_pgdata18:/var/lib/postgresql
+      - geoblinko_pgdata16:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
       interval: 10s
@@ -46,6 +46,10 @@ services:
       NEXTAUTH_URL: "http://localhost:2222"
       NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
       NEXTAUTH_SECRET: "change-me-please-8b6d5f7c"
+      # Frontend (Vite) - exposed to client bundle
+      VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
+      # Legacy / other parts (kept for compatibility)
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
       AMAP_WEB_API_KEY: "ed4327e40666552c8f0d543748b18a38"
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "postgres"
@@ -53,7 +57,7 @@ services:
     ports:
       - "2222:1111"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://127.0.0.1:1111/"]
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:2222/"]
       interval: 30s
       timeout: 10s
       retries: 5
