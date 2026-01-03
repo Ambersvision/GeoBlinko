@@ -364,12 +364,30 @@ jobs:
 
       - name: Rename Android App File
         run: |
-          cd app/src-tauri/gen/android/app/build/outputs/apk/release
+          # Check for universal APK directory
+          APK_DIR="app/src-tauri/gen/android/app/build/outputs/apk/universal/release"
+          if [ -d "$APK_DIR" ]; then
+            cd "$APK_DIR"
+          else
+            # Fallback to regular release directory
+            APK_DIR="app/src-tauri/gen/android/app/build/outputs/apk/release"
+            if [ -d "$APK_DIR" ]; then
+              cd "$APK_DIR"
+            else
+              echo "ERROR: APK directory not found, listing available directories:"
+              ls -R app/src-tauri/gen/android/app/build/outputs/apk/ 2>/dev/null || true
+              exit 1
+            fi
+          fi
+
           VERSION="${{ needs.set-version.outputs.version }}"
+          echo "Current directory: $(pwd)"
           echo "APK files in directory:"
           ls -la
-          # Find and rename APK file
-          mv app-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || mv app-universal-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || true
+          # Find and rename APK file (universal release takes priority)
+          mv app-universal-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || \
+          mv app-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || \
+          echo "Warning: Could not find APK file to rename"
           echo "Final APK file:"
           ls -la
 
