@@ -338,7 +338,25 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
-      - name: Build Android App (Debug Build - No Signing)
+      - name: Create dummy keystore.properties for debug build
+        run: |
+          mkdir -p app/src-tauri/gen/android
+          cat > app/src-tauri/gen/android/keystore.properties << 'EOF'
+          password=android
+          keyAlias=androiddebugkey
+          storeFile=$HOME/.android/debug.keystore
+          EOF
+          # Ensure keystore directory exists
+          mkdir -p $HOME/.android
+          # Create debug keystore if it doesn't exist
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkey -v -keystore $HOME/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Build Android App (Debug Build)
         run: |
           cd app
           bun run tauri android build --debug
