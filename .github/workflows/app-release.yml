@@ -341,6 +341,7 @@ jobs:
       - name: Build Android App (Debug Build - No Signing)
         run: |
           cd app/src-tauri/gen/android
+          chmod +x gradlew
           ./gradlew assembleDebug
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
