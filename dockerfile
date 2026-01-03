@@ -56,9 +56,8 @@ RUN if [ "$CACHEBUST" != "1" ]; then \
     else \
         NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \
     fi
-RUN bun run build:seed
-RUN bunx prisma generate
-RUN bun run build:web
+
+# Build seed
 RUN bun run build:seed
 
 RUN printf '#!/bin/sh\necho "Current Environment: $NODE_ENV"\nnpx prisma migrate deploy\nnode server/seed.js\nnode server/index.js\n' > start.sh && \
