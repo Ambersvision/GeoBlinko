@@ -30,11 +30,7 @@ services:
       - geoblinko-net
 
   blinko-website:
-    image: geoblinko:local
-    build:
-      context: .
-      args:
-        USE_MIRROR: "true"
+    image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
     restart: always
     depends_on:
