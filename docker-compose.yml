@@ -6,41 +6,60 @@ networks:
 
 volumes:
   geoblinko_pgdata16:
+    driver: local
+  geoblinko_appdata:
+    driver: local
+  geoblinko_backup:
+    driver: local
 
 services:
   postgres:
     image: postgres:16
     container_name: Geoblinko-postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      TZ: "Asia/Shanghai"
     ports:
       - "15432:5432"
     volumes:
-      - geoblinko_pgdata16:/var/lib/postgresql
+      - geoblinko_pgdata16:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "psql -U postgres -d postgres -c 'SELECT 1'"]
-      interval: 30s
-      timeout: 30s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 120s
+      start_period: 30s
     networks:
       - geoblinko-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
 
   blinko-website:
     image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
+    volumes:
+      - geoblinko_appdata:/app/.blinko
+      - geoblinko_backup:/app/backup
     environment:
       NODE_ENV: production
-      NEXTAUTH_URL: "http://localhost:2222"
-      NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
-      NEXTAUTH_SECRET: "change-me-please-8b6d5f7c"
+      TZ: "Asia/Shanghai"
+      # 请将以下IP地址改为您的飞牛NAS的实际IP地址
+      NEXTAUTH_URL: "http://192.168.0.160:2222"
+      NEXT_PUBLIC_BASE_URL: "http://192.168.0.160:2222"
+      NEXTAUTH_SECRET: "Bhtcgroup.0"
       # Frontend (Vite) - exposed to client bundle
       VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
       # Legacy / other parts (kept for compatibility)
@@ -52,10 +71,23 @@ services:
     ports:
       - "2222:1111"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://127.0.0.1:1111/"]
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:1111/"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 90s
     networks:
       - geoblinko-net
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+        reservations:
+          cpus: "1"
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
