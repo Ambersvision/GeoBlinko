@@ -119,11 +119,12 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     }
   }, [mode])
 
-  // 监听打开位置选择器事件（仅在编辑模式下）
+  // 监听打开位置选择器事件（仅在编辑对话框模式下）
   useEffect(() => {
     const handleOpenLocationPicker = () => {
-      // 只在编辑模式下响应位置选择器事件
-      if (!isCreateMode) {
+      // 只在编辑对话框模式下响应位置选择器事件
+      // 排除主页上的创建模式编辑器
+      if (!isCreateMode && isInDialog) {
         setIsLocationPickerOpen(true)
       }
     }
@@ -131,7 +132,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     return () => {
       eventBus.off('editor:openLocationPicker', handleOpenLocationPicker)
     }
-  }, [isCreateMode])
+  }, [isCreateMode, isInDialog])
 
   // 处理插入位置文本到编辑器
   const handleInsertLocationText = (text: string) => {
