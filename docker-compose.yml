@@ -33,7 +33,6 @@ services:
     image: geoblinko:local
     build:
       context: .
-      dockerfile: dockerfile
       args:
         USE_MIRROR: "true"
     container_name: Geoblinko-website
