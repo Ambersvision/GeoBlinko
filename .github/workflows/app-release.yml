@@ -340,9 +340,8 @@ jobs:
 
       - name: Build Android App (Debug Build - No Signing)
         run: |
-          cd app/src-tauri/gen/android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          cd app
+          bun run tauri android build --debug
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
 
@@ -350,18 +349,19 @@ jobs:
         run: |
           cd app/src-tauri/gen/android/app/build/outputs/apk/debug
           VERSION="${{ needs.set-version.outputs.version }}"
-          echo "Original APK file:"
+          echo "APK files in directory:"
           ls -la
-          # Rename APK file
-          mv app-debug.apk Blinko_${VERSION}_debug.apk
-          echo "Renamed APK file:"
+          # Find and rename APK file
+          mv app-debug.apk Blinko_${VERSION}_debug.apk 2>/dev/null || mv app-universal-debug.apk Blinko_${VERSION}_debug.apk 2>/dev/null || true
+          echo "Final APK file:"
           ls -la
 
       - name: Upload Android APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: blinko-android-${{ needs.set-version.outputs.version }}
-          path: app/src-tauri/gen/android/app/build/outputs/apk/debug/Blinko_${{ needs.set-version.outputs.version }}_debug.apk
+          path: app/src-tauri/gen/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
 
   # Generate changelog after all builds are complete
   generate-changelog:
