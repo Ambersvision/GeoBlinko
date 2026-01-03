@@ -338,7 +338,7 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
-      - name: Create dummy keystore.properties for debug build
+      - name: Create debug keystore for release build
         run: |
           mkdir -p app/src-tauri/gen/android
           cat > app/src-tauri/gen/android/keystore.properties << 'EOF'
@@ -356,21 +356,21 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Build Android App (Debug Build)
+      - name: Build Android App (Release with debug keystore)
         run: |
           cd app
-          bun run tauri android build --debug
+          bun run tauri android build
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
 
       - name: Rename Android App File
         run: |
-          cd app/src-tauri/gen/android/app/build/outputs/apk/debug
+          cd app/src-tauri/gen/android/app/build/outputs/apk/release
           VERSION="${{ needs.set-version.outputs.version }}"
           echo "APK files in directory:"
           ls -la
           # Find and rename APK file
-          mv app-debug.apk Blinko_${VERSION}_debug.apk 2>/dev/null || mv app-universal-debug.apk Blinko_${VERSION}_debug.apk 2>/dev/null || true
+          mv app-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || mv app-universal-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || true
           echo "Final APK file:"
           ls -la
 
@@ -378,7 +378,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: blinko-android-${{ needs.set-version.outputs.version }}
-          path: app/src-tauri/gen/android/app/build/outputs/apk/debug/*.apk
+          path: app/src-tauri/gen/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
 
   # Generate changelog after all builds are complete
