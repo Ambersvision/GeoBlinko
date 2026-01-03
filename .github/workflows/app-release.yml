@@ -338,54 +338,29 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
-      - name: Upload Keystore File
+      - name: Build Android App (Debug Build - No Signing)
         run: |
-          # Create keystore directory
-          mkdir -p ~/.android
-          # Create keystore file
-          echo "${{ secrets.UPLOAD_KEYSTORE }}" | base64 --decode > ~/.android/upload-keystore.jks
-          # Create keystore.properties
-          mkdir -p app/src-tauri/gen/android
-          cat > app/src-tauri/gen/android/keystore.properties << EOF
-          password=106111
-          keyAlias=upload
-          storeFile=$HOME/.android/upload-keystore.jks
-          EOF
-
-      - name: Build Android App
-        run: |
-          cd app
-          bun run tauri:android:build
+          cd app/src-tauri/gen/android
+          ./gradlew assembleDebug
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
 
       - name: Rename Android App File
         run: |
-          cd app/src-tauri/gen/android/app/build/outputs/apk/universal/release
+          cd app/src-tauri/gen/android/app/build/outputs/apk/debug
           VERSION="${{ needs.set-version.outputs.version }}"
           echo "Original APK file:"
           ls -la
           # Rename APK file
-          mv app-universal-release.apk Blinko_${VERSION}_universal.apk
+          mv app-debug.apk Blinko_${VERSION}_debug.apk
           echo "Renamed APK file:"
           ls -la
 
-      - name: Upload Android App to Release
-        if: github.event.inputs.is-test != 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: app/src-tauri/gen/android/app/build/outputs/apk/universal/release/Blinko_${{ needs.set-version.outputs.version }}_universal.apk
-          tag_name: ${{ needs.set-version.outputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Android APK as artifact (Test Mode)
-        if: github.event.inputs.is-test == 'true'
+      - name: Upload Android APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: blinko-test-android-${{ needs.set-version.outputs.version }}
-          path: app/src-tauri/gen/android/app/build/outputs/apk/universal/release/Blinko_${{ needs.set-version.outputs.version }}_universal.apk
-          retention-days: 7
+          name: blinko-android-${{ needs.set-version.outputs.version }}
+          path: app/src-tauri/gen/android/app/build/outputs/apk/debug/Blinko_${{ needs.set-version.outputs.version }}_debug.apk
 
   # Generate changelog after all builds are complete
   generate-changelog:
