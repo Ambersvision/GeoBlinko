@@ -210,7 +210,7 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
                       // 延迟触发位置选择器，确保对话框已打开
                       setTimeout(() => {
                         eventBus.emit('editor:openLocationPicker');
-                      }, 100);
+                      }, 300);
                     }}
                     compact={!isExpanded}
                   />
