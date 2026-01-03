@@ -349,10 +349,13 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-          # Use expanded absolute path in keystore.properties
-          echo "password=android" > app/src-tauri/gen/android/keystore.properties
-          echo "keyAlias=androiddebugkey" >> app/src-tauri/gen/android/keystore.properties
-          echo "storeFile=$HOME/.android/debug.keystore" >> app/src-tauri/gen/android/keystore.properties
+          # Create keystore.properties with absolute path
+          cat > app/src-tauri/gen/android/keystore.properties << EOF
+          password=android
+          keyAlias=androiddebugkey
+          storeFile=$HOME/.android/debug.keystore
+          EOF
+          echo "Keystore properties:"
           cat app/src-tauri/gen/android/keystore.properties
 
       - name: Build Android App (Release with debug keystore)
@@ -364,8 +367,21 @@ jobs:
 
       - name: Rename Android App File
         run: |
-          cd app/src-tauri/gen/android/app/build/outputs/apk/release
+          APK_DIR="app/src-tauri/gen/android/app/build/outputs/apk/release"
           VERSION="${{ needs.set-version.outputs.version }}"
+          # Check if APK directory exists (build may have failed)
+          if [ ! -d "$APK_DIR" ]; then
+            echo "ERROR: APK directory not found, checking for debug APK..."
+            APK_DIR="app/src-tauri/gen/android/app/build/outputs/apk/debug"
+          fi
+          # Try both release and debug directories
+          if [ ! -d "$APK_DIR" ]; then
+            echo "ERROR: No APK directory found. Build may have failed."
+            echo "Listing build output directories:"
+            find app/src-tauri/gen/android/app/build/outputs -name "*.apk" 2>/dev/null || echo "No APK files found"
+            exit 1
+          fi
+          cd "$APK_DIR"
           echo "APK files in directory:"
           ls -la
           # Find and rename APK file
@@ -374,6 +390,7 @@ jobs:
           ls -la
 
       - name: Upload Android APK as artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: blinko-android-${{ needs.set-version.outputs.version }}
