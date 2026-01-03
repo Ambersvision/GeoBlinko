@@ -21,11 +21,11 @@ services:
     volumes:
       - geoblinko_pgdata16:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
+      test: ["CMD-SHELL", "psql -U postgres -d postgres -c 'SELECT 1'"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
     networks:
       - geoblinko-net
 
@@ -39,7 +39,7 @@ services:
     restart: always
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
     environment:
       NODE_ENV: production
       NEXTAUTH_URL: "http://localhost:2222"
