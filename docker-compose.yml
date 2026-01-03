@@ -57,7 +57,7 @@ services:
     ports:
       - "2222:1111"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://127.0.0.1:2222/"]
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:1111/"]
       interval: 30s
       timeout: 10s
       retries: 5
