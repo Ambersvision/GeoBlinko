@@ -341,12 +341,6 @@ jobs:
       - name: Create debug keystore for release build
         run: |
           mkdir -p app/src-tauri/gen/android
-          cat > app/src-tauri/gen/android/keystore.properties << 'EOF'
-          password=android
-          keyAlias=androiddebugkey
-          storeFile=$HOME/.android/debug.keystore
-          EOF
-          # Ensure keystore directory exists
           mkdir -p $HOME/.android
           # Create debug keystore if it doesn't exist
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
@@ -355,6 +349,11 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
+          # Use expanded absolute path in keystore.properties
+          echo "password=android" > app/src-tauri/gen/android/keystore.properties
+          echo "keyAlias=androiddebugkey" >> app/src-tauri/gen/android/keystore.properties
+          echo "storeFile=$HOME/.android/debug.keystore" >> app/src-tauri/gen/android/keystore.properties
+          cat app/src-tauri/gen/android/keystore.properties
 
       - name: Build Android App (Release with debug keystore)
         run: |
