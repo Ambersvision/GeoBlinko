@@ -56,15 +56,15 @@ services:
       # API Key 注入配置（运行时替换占位符）
       INJECT_VARS: "VITE_AMAP_WEB_API_KEY=your-amap-web-api-key NEXT_PUBLIC_AMAP_WEB_API_KEY=your-amap-web-api-key AMAP_WEB_API_KEY=your-amap-web-api-key"
       # Frontend (Vite) - exposed to client bundle
-      VITE_AMAP_WEB_API_KEY: "your-amap-web-api-key"
+      VITE_AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
       # Legacy / other parts (kept for compatibility)
-      NEXT_PUBLIC_AMAP_WEB_API_KEY: "your-amap-web-api-key"
-      AMAP_WEB_API_KEY: "your-amap-web-api-key"
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
+      AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
       POSTGRES_USER: "postgres" # 请将此处改为您自己的用户名
       POSTGRES_PASSWORD: "postgres" # 请将此处改为您自己的密码
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres" # 请根据实际情况修改数据库连接URL
     ports:
-      - "2222:1111" # 请根据实际情况修改端口映射
+      - "2222:1111" # 请根据实际情况修改端口映射  
     healthcheck:
       test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:1111/"]
       interval: 30s

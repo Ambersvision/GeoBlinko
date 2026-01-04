@@ -148,12 +148,29 @@ export const LocationPicker = observer(({
     return (window as any).AMap;
   }, []);
 
-  const focusMapOnLocation = useCallback((loc: { latitude: number; longitude: number }) => {
+  const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }) => {
     if (!mapInstanceRef.current || !markerRef.current) return;
     const center: [number, number] = [loc.longitude, loc.latitude];
+
+    // 更新标记位置到指定位置
     markerRef.current.setPosition(center);
+
+    // 移动地图到指定位置
     mapInstanceRef.current.setZoomAndCenter(16, center);
-  }, []);
+
+    // 立即获取新位置的地址（不等待 moveend 事件）
+    const geocode = await reverseGeocodeByJs(loc.longitude, loc.latitude);
+    setMapSelection({
+      id: `map_${Date.now()}`,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      address: geocode?.formattedAddress || '',
+      formattedAddress: geocode?.formattedAddress || '',
+      poiName: geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点',
+      distance: undefined,
+      createdAt: new Date().toISOString()
+    });
+  }, [reverseGeocodeByJs]);
 
   const reverseGeocodeByJs = useCallback(async (lng: number, lat: number) => {
     if (!geocoderRef.current) return null;
@@ -168,13 +185,20 @@ export const LocationPicker = observer(({
     });
   }, []);
 
-  const handleMarkerDrag = useCallback(async (lnglat: any) => {
-    if (!lnglat) return;
-    const lng = lnglat?.lng || lnglat?.getLng?.();
-    const lat = lnglat?.lat || lnglat?.getLat?.();
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setCenter([lng, lat]);
+  const handleMapMoveEnd = useCallback(async () => {
+    if (!mapInstanceRef.current) return;
+
+    // 获取地图当前中心点
+    const center = mapInstanceRef.current.getCenter();
+    const lng = center.getLng();
+    const lat = center.getLat();
+
+    // 更新标记位置到地图中心
+    if (markerRef.current) {
+      markerRef.current.setPosition([lng, lat]);
     }
+
+    // 反向地理编码获取地址
     const geocode = await reverseGeocodeByJs(lng, lat);
     setMapSelection({
       id: `map_${Date.now()}`,
@@ -187,6 +211,12 @@ export const LocationPicker = observer(({
       createdAt: new Date().toISOString()
     });
   }, [reverseGeocodeByJs]);
+
+  // 防抖版本，避免频繁触发
+  const debouncedHandleMapMoveEnd = useCallback(
+    debounce(handleMapMoveEnd, 500),
+    [handleMapMoveEnd]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -230,11 +260,13 @@ export const LocationPicker = observer(({
 
         markerRef.current = new AMap.Marker({
           position: [centerLng, centerLat],
-          draggable: true,
-          cursor: 'move'
+          draggable: false,  // 固定在中心，不允拖拽
+          cursor: 'default'
         });
-        markerRef.current.on('dragend', (e: any) => handleMarkerDrag(e?.lnglat));
         mapInstanceRef.current.add(markerRef.current);
+
+        // 监听地图移动结束事件，更新标记位置和地址
+        mapInstanceRef.current.on('moveend', debouncedHandleMapMoveEnd);
       } catch (error: any) {
         console.error('Init map failed:', error);
         setMapError(error?.message || '地图加载失败');
@@ -247,22 +279,25 @@ export const LocationPicker = observer(({
     return () => {
       disposed = true;
       if (mapInstanceRef.current) {
+        mapInstanceRef.current.off('moveend', debouncedHandleMapMoveEnd);
         mapInstanceRef.current.destroy?.();
       }
       mapInstanceRef.current = null;
       markerRef.current = null;
       geocoderRef.current = null;
     };
-  }, [isOpen, loadAmap, handleMarkerDrag]);
+  }, [isOpen, loadAmap, debouncedHandleMapMoveEnd]);
 
-  useEffect(() => {
+  // 移除这个 useEffect，避免与 focusMapOnLocation 重复
+  // focusMapOnLocation 已经会更新标记位置和地图中心
+  /* useEffect(() => {
     if (!mapInstanceRef.current || !mapSelection) {
       console.log('[LocationPicker] Skipping map update - map not ready or no selection');
       return;
     }
     console.log('[LocationPicker] Updating map to:', mapSelection);
     focusMapOnLocation(mapSelection);
-  }, [mapSelection, focusMapOnLocation]);
+  }, [mapSelection, focusMapOnLocation]); */
 
   useEffect(() => {
     if (!mapSelection && locations.length > 0) {
@@ -382,19 +417,9 @@ export const LocationPicker = observer(({
 
       // 设置附近位置列表，当前位置排在第一位
       setNearbyLocations([currentLoc, ...nearbyResults]);
-      const newMapSelection = {
-        id: currentLoc.id,
-        latitude: currentLoc.latitude,
-        longitude: currentLoc.longitude,
-        address: currentLoc.address,
-        formattedAddress: currentLoc.formattedAddress,
-        poiName: currentLoc.name,
-        distance: currentLoc.distance,
-        createdAt: new Date().toISOString()
-      };
-      console.log('[LocationPicker] Setting map selection to current location:', newMapSelection);
-      setMapSelection(newMapSelection);
-      focusMapOnLocation({
+      // focusMapOnLocation 会设置 mapSelection，不需要手动设置
+      console.log('[LocationPicker] Setting map to current location:', currentLoc);
+      await focusMapOnLocation({
         latitude: currentLoc.latitude,
         longitude: currentLoc.longitude
       });
@@ -443,19 +468,9 @@ export const LocationPicker = observer(({
         return;
       }
       const target = results[0];
-      focusMapOnLocation({
+      await focusMapOnLocation({
         latitude: target.latitude,
         longitude: target.longitude
-      });
-      setMapSelection({
-        id: `map_${Date.now()}`,
-        latitude: target.latitude,
-        longitude: target.longitude,
-        address: target.address || '',
-        formattedAddress: target.formattedAddress || '',
-        poiName: target.name,
-        distance: target.distance,
-        createdAt: new Date().toISOString()
       });
     } catch (error) {
       console.error('jumpMapToKeyword error:', error);
@@ -482,7 +497,7 @@ export const LocationPicker = observer(({
   };
 
   // 添加搜索结果中的位置
-  const addSearchResult = (result: any) => {
+  const addSearchResult = async (result: any) => {
     const newLocation: LocationData = {
       id: `loc_${Date.now()}`,
       latitude: result.latitude,
@@ -497,15 +512,15 @@ export const LocationPicker = observer(({
     setLocations([...locations, newLocation]);
     setSearchKeyword('');
     setSearchResults([]);
-    setMapSelection(newLocation);
-    focusMapOnLocation({
+    // focusMapOnLocation 会设置 mapSelection，这里不需要重复设置
+    await focusMapOnLocation({
       latitude: result.latitude,
       longitude: result.longitude
     });
   };
 
   // 添加附近位置
-  const addNearbyLocation = (location: any) => {
+  const addNearbyLocation = async (location: any) => {
     const newLocation: LocationData = {
       id: `loc_${Date.now()}`,
       latitude: location.latitude,
@@ -519,8 +534,8 @@ export const LocationPicker = observer(({
 
     setLocations([...locations, newLocation]);
     setNearbyLocations([]);
-    setMapSelection(newLocation);
-    focusMapOnLocation({
+    // focusMapOnLocation 会设置 mapSelection，这里不需要重复设置
+    await focusMapOnLocation({
       latitude: location.latitude,
       longitude: location.longitude
     });
