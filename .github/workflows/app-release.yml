@@ -113,139 +113,139 @@ jobs:
           name: tauri-config
           path: app/src-tauri/tauri.conf.json
 
-  # Desktop Platform Build Task (DISABLED - Only building Android)
-  # publish-desktop:
-  #   needs: [set-version, update-version]
-  #   if: always() && !cancelled() && needs.set-version.result == 'success' && (needs.update-version.result == 'success' || needs.update-version.result == 'skipped')
-  #   permissions:
-  #     contents: write
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - platform: 'macos-latest' # Apple Silicon (M-series chip)
-  #           args: '--target aarch64-apple-darwin'
-  #         - platform: 'ubuntu-22.04' # Linux Platform
-  #           args: ''
-  #         - platform: 'windows-latest' # Windows Platform
-  #           args: ''
-  #
-  #   runs-on: ${{ matrix.platform }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #
-  #     - name: Show build info (Test Mode)
-  #       if: github.event.inputs.is-test == 'true'
-  #       shell: bash
-  #       run: |
-  #         echo "=== TEST MODE BUILD ==="
-  #         echo "Branch: $(git branch --show-current)"
-  #         echo "Commit: $(git rev-parse --short HEAD)"
-  #         echo "Test version: ${{ github.event.inputs.tag }}"
-  #         echo "======================"
-  #
-  #     - name: Update version in tauri.conf.json (Test Mode)
-  #       if: github.event.inputs.is-test == 'true'
-  #       shell: bash
-  #       run: |
-  #         # Test mode: update version locally without committing
-  #         jq '.version = "${{ needs.set-version.outputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
-  #         echo "Updated version to ${{ needs.set-version.outputs.version }} (test mode, not committed)"
-  #         cat app/src-tauri/tauri.conf.json
-  #
-  #     - name: Download tauri.conf.json (Release Mode)
-  #       if: github.event.inputs.is-test != 'true'
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: tauri-config
-  #         path: app/src-tauri/
-  #
-  #     - name: Fix version format for Windows MSI
-  #       if: matrix.platform == 'windows-latest'
-  #       run: |
-  #         $versionJson = Get-Content -Path app/src-tauri/tauri.conf.json | ConvertFrom-Json
-  #         $currentVersion = $versionJson.version
-  #
-  #         if ($currentVersion -match '-(.+)$') {
-  #           $newVersion = $currentVersion -replace '-(.+)$', ''
-  #
-  #           $versionJson.version = $newVersion
-  #
-  #           $jsonContent = Get-Content -Path app/src-tauri/tauri.conf.json -Raw
-  #           $jsonContent = $jsonContent -replace '"version": "([^"]+)"', "`"version`": `"$newVersion`""
-  #           $jsonContent | Set-Content -Path app/src-tauri/tauri.conf.json -NoNewline
-  #
-  #           echo "Windows version $currentVersion changed to $newVersion"
-  #         } else {
-  #           echo "Version $currentVersion does not need to be modified"
-  #         }
-  #
-  #     - name: Install Ubuntu Dependencies
-  #       if: matrix.platform == 'ubuntu-22.04'
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
-  #
-  #     - name: Setup Node Environment
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: lts/*
-  #
-  #     - name: Install bun
-  #       uses: oven-sh/setup-bun@v1
-  #       with:
-  #         bun-version: 1.2.8
-  #
-  #     - name: Install Rust Stable
-  #       uses: dtolnay/rust-toolchain@stable
-  #       with:
-  #         targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-  #
-  #     - name: Rust Cache
-  #       if: github.event.inputs.disable-all-cache != 'true'
-  #       uses: Swatinem/rust-cache@v2
-  #       with:
-  #         workspaces: app/src-tauri
-  #         cache-on-failure: true
-  #
-  #     - name: Install Dependencies
-  #       run: |
-  #         bun install --frozen-lockfile
-  #
-  #     - name: Build Frontend
-  #       shell: bash
-  #       run: |
-  #         cd app
-  #         echo "Building frontend..."
-  #         bun run build:no-pwa
-  #         echo "Frontend build completed"
-  #         ls -la ../dist/public/
-  #
-  #     # Using official Tauri Action to build and publish
-  #     - name: Build and Publish Desktop App
-  #       uses: tauri-apps/tauri-action@v0
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         projectPath: 'app'
-  #         args: ${{ matrix.args }}
-  #         tagName: ${{ github.event.inputs.is-test == 'true' && '' || needs.set-version.outputs.version }}
-  #         releaseName: ${{ github.event.inputs.is-test == 'true' && '' || format('Blinko {0}', needs.set-version.outputs.version) }}
-  #         releaseBody: ${{ github.event.inputs.is-test == 'true' && '' || 'Under construction, full changelog will be updated after build completion...' }}
-  #         releaseDraft: ${{ github.event.inputs.is-test == 'true' }}
-  #         prerelease: ${{ github.event.inputs.is-test == 'true' }}
-  #
-  #     - name: Upload test artifacts
-  #       if: github.event.inputs.is-test == 'true'
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: blinko-test-${{ matrix.platform }}-${{ github.event.inputs.tag }}
-  #         path: |
-  #           app/src-tauri/target/release/bundle/**/*
-  #           !app/src-tauri/target/release/bundle/**/*.dSYM/**
-  #         retention-days: 7
+  # Desktop Platform Build Task (ENABLED)
+  publish-desktop:
+    needs: [set-version, update-version]
+    if: always() && !cancelled() && needs.set-version.result == 'success' && (needs.update-version.result == 'success' || needs.update-version.result == 'skipped')
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest' # Apple Silicon (M-series chip)
+            args: '--target aarch64-apple-darwin'
+          - platform: 'ubuntu-22.04' # Linux Platform
+            args: ''
+          - platform: 'windows-latest' # Windows Platform
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show build info (Test Mode)
+        if: github.event.inputs.is-test == 'true'
+        shell: bash
+        run: |
+          echo "=== TEST MODE BUILD ==="
+          echo "Branch: $(git branch --show-current)"
+          echo "Commit: $(git rev-parse --short HEAD)"
+          echo "Test version: ${{ github.event.inputs.tag }}"
+          echo "======================"
+
+      - name: Update version in tauri.conf.json (Test Mode)
+        if: github.event.inputs.is-test == 'true'
+        shell: bash
+        run: |
+          # Test mode: update version locally without committing
+          jq '.version = "${{ needs.set-version.outputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
+          echo "Updated version to ${{ needs.set-version.outputs.version }} (test mode, not committed)"
+          cat app/src-tauri/tauri.conf.json
+
+      - name: Download tauri.conf.json (Release Mode)
+        if: github.event.inputs.is-test != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-config
+          path: app/src-tauri/
+
+      - name: Fix version format for Windows MSI
+        if: matrix.platform == 'windows-latest'
+        run: |
+          $versionJson = Get-Content -Path app/src-tauri/tauri.conf.json | ConvertFrom-Json
+          $currentVersion = $versionJson.version
+
+          if ($currentVersion -match '-(.+)$') {
+            $newVersion = $currentVersion -replace '-(.+)$', ''
+
+            $versionJson.version = $newVersion
+
+            $jsonContent = Get-Content -Path app/src-tauri/tauri.conf.json -Raw
+            $jsonContent = $jsonContent -replace '"version": "([^"]+)"', "`"version`": `"$newVersion`""
+            $jsonContent | Set-Content -Path app/src-tauri/tauri.conf.json -NoNewline
+
+            echo "Windows version $currentVersion changed to $newVersion"
+          } else {
+            echo "Version $currentVersion does not need to be modified"
+          }
+
+      - name: Install Ubuntu Dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
+
+      - name: Setup Node Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.2.8
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust Cache
+        if: github.event.inputs.disable-all-cache != 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          cache-on-failure: true
+
+      - name: Install Dependencies
+        run: |
+          bun install --frozen-lockfile
+
+      - name: Build Frontend
+        shell: bash
+        run: |
+          cd app
+          echo "Building frontend..."
+          bun run build:no-pwa
+          echo "Frontend build completed"
+          ls -la ../dist/public/
+
+      # Using official Tauri Action to build and publish
+      - name: Build and Publish Desktop App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: 'app'
+          args: ${{ matrix.args }}
+          tagName: ${{ github.event.inputs.is-test == 'true' && '' || needs.set-version.outputs.version }}
+          releaseName: ${{ github.event.inputs.is-test == 'true' && '' || format('Blinko {0}', needs.set-version.outputs.version) }}
+          releaseBody: ${{ github.event.inputs.is-test == 'true' && '' || 'Under construction, full changelog will be updated after build completion...' }}
+          releaseDraft: ${{ github.event.inputs.is-test == 'true' }}
+          prerelease: ${{ github.event.inputs.is-test == 'true' }}
+
+      - name: Upload test artifacts
+        if: github.event.inputs.is-test == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: blinko-test-${{ matrix.platform }}-${{ github.event.inputs.tag }}
+          path: |
+            app/src-tauri/target/release/bundle/**/*
+            !app/src-tauri/target/release/bundle/**/*.dSYM/**
+          retention-days: 7
 
   # Android Platform Build Task (ONLY)
   publish-android:
@@ -400,9 +400,9 @@ jobs:
 
   # Generate changelog after all builds are complete
   generate-changelog:
-    if: github.event.inputs.is-test != 'true' && always() && !cancelled() && needs.publish-android.result == 'success'
+    if: github.event.inputs.is-test != 'true' && always() && !cancelled() && (needs.publish-android.result == 'success' || needs.publish-desktop.result == 'success')
     runs-on: ubuntu-latest
-    needs: [set-version, publish-android]
+    needs: [set-version, publish-android, publish-desktop]
     outputs:
       changelog: ${{ steps.changelog.outputs.changes }}
     steps:
@@ -425,7 +425,7 @@ jobs:
   update-release:
     if: github.event.inputs.is-test != 'true' && !cancelled() && needs.generate-changelog.result == 'success'
     runs-on: ubuntu-latest
-    needs: [set-version, generate-changelog, publish-android]
+    needs: [set-version, generate-changelog, publish-android, publish-desktop]
     permissions:
       contents: write
     steps:
@@ -552,7 +552,7 @@ jobs:
   notify-telegram:
     if: github.event.inputs.is-test != 'true' && !cancelled() && needs.update-release.result == 'success' && needs.process-notification.result == 'success'
     runs-on: ubuntu-latest
-    needs: [set-version, update-release, generate-changelog, process-notification]
+    needs: [set-version, update-release, generate-changelog, process-notification, publish-android, publish-desktop]
     steps:
       - name: Send notification to Telegram group 1 (Chinese)
         uses: appleboy/telegram-action@v0.1.1
