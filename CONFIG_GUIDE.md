@@ -17,18 +17,29 @@
 
 ### 步骤 1: 在 `docker-compose.yml` 中添加环境变量
 
-编辑 `docker-compose.yml`，在 `blinko-website` 服务的 `environment` 部分添加新变量：
+编辑 `docker-compose.yml`，在 `blinko-website` 服务的 `environment` 部分添加或修改变量：
+
+**当前配置示例（已经包含在 docker-compose.yml 中）：**
 
 ```yaml
 services:
   blinko-website:
     environment:
-      # 现有变量...
-      VITE_AMAP_WEB_API_KEY: "your_key_here"
-      NEXT_PUBLIC_AMAP_WEB_API_KEY: "your_key_here"
-      AMAP_WEB_API_KEY: "your_key_here"
-      # 添加新变量
-      VITE_YOUR_NEW_KEY: "your_new_key_here"
+      # API Key 注入配置（运行时替换占位符）
+      INJECT_VARS: "VITE_AMAP_WEB_API_KEY=494ffc7b7f40fccd775ca3227e6d8804 NEXT_PUBLIC_AMAP_WEB_API_KEY=494ffc7b7f40fccd775ca3227e6d8804 AMAP_WEB_API_KEY=ed4327e40666552c8f0d543748b18a38"
+
+      # 以下变量作为后备，但会被 INJECT_VARS 优先覆盖
+      VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
+      AMAP_WEB_API_KEY: "ed4327e40666552c8f0d543748b18a38"
+```
+
+**自定义你的 API Key：**
+
+只需修改 `INJECT_VARS` 中的值即可：
+
+```yaml
+INJECT_VARS: "VITE_AMAP_WEB_API_KEY=你的新Key NEXT_PUBLIC_AMAP_WEB_API_KEY=你的新Key AMAP_WEB_API_KEY=你的新Key"
 ```
 
 ### 步骤 2: 根据变量类型选择配置方式

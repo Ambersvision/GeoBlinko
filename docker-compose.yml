@@ -36,10 +36,7 @@ services:
           memory: 512M
 
   blinko-website:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: geoblinko-blinko-website:latest
+    image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
     restart: unless-stopped
     depends_on:
@@ -55,6 +52,8 @@ services:
       NEXTAUTH_URL: "http://localhost:2222"
       NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
       NEXTAUTH_SECRET: "postgres"
+      # API Key 注入配置（运行时替换占位符）
+      INJECT_VARS: "VITE_AMAP_WEB_API_KEY=494ffc7b7f40fccd775ca3227e6d8804 NEXT_PUBLIC_AMAP_WEB_API_KEY=494ffc7b7f40fccd775ca3227e6d8804 AMAP_WEB_API_KEY=ed4327e40666552c8f0d543748b18a38"
       # Frontend (Vite) - exposed to client bundle
       VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
       # Legacy / other parts (kept for compatibility)
