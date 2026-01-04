@@ -39,6 +39,9 @@ services:
     image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./data/appdata:/app/.blinko
       - ./data/backup:/app/backup
