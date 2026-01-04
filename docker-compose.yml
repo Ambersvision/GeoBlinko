@@ -4,14 +4,6 @@ networks:
   geoblinko-net:
     driver: bridge
 
-volumes:
-  geoblinko_pgdata16:
-    driver: local
-  geoblinko_appdata:
-    driver: local
-  geoblinko_backup:
-    driver: local
-
 services:
   postgres:
     image: postgres:16
@@ -20,12 +12,12 @@ services:
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 089635
       TZ: "Asia/Shanghai"
     ports:
       - "15432:5432"
     volumes:
-      - geoblinko_pgdata16:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -51,23 +43,23 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - geoblinko_appdata:/app/.blinko
-      - geoblinko_backup:/app/backup
+      - ./data/appdata:/app/.blinko
+      - ./data/backup:/app/backup
     environment:
       NODE_ENV: production
       TZ: "Asia/Shanghai"
       # 请将以下IP地址改为您的飞牛NAS的实际IP地址
-      NEXTAUTH_URL: "http://192.168.0.160:2222"
-      NEXT_PUBLIC_BASE_URL: "http://192.168.0.160:2222"
-      NEXTAUTH_SECRET: "Bhtcgroup.0"
+      NEXTAUTH_URL: "http://localhost:2222"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
+      NEXTAUTH_SECRET: "089635"
       # Frontend (Vite) - exposed to client bundle
       VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
       # Legacy / other parts (kept for compatibility)
       NEXT_PUBLIC_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
       AMAP_WEB_API_KEY: "ed4327e40666552c8f0d543748b18a38"
       POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres"
+      POSTGRES_PASSWORD: "089635"
+      DATABASE_URL: "postgresql://postgres:089635@postgres:5432/postgres"
     ports:
       - "2222:1111"
     healthcheck:

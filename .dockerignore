@@ -51,3 +51,5 @@ CONTRIBUTING.md
 **/target
 
 !**/dist-js/*
+# Data directories
+data/
