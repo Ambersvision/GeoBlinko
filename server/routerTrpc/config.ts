@@ -227,5 +227,18 @@ export const configRouter = router({
       console.log(123)
       const model = await getAiModelConfig(type, ctx);
       return model;
+    }),
+
+  getAmapKey: publicProcedure
+    .meta({ openapi: { method: 'GET', path: '/v1/config/amap-key', summary: 'Get Amap Web API Key', protect: false, tags: ['Config'] } })
+    .input(z.void())
+    .output(z.string())
+    .query(async function () {
+      // 优先读取 VITE_AMAP_WEB_API_KEY，然后是 NEXT_PUBLIC_AMAP_WEB_API_KEY，最后是 AMAP_WEB_API_KEY
+      const key = process.env.VITE_AMAP_WEB_API_KEY || process.env.NEXT_PUBLIC_AMAP_WEB_API_KEY || process.env.AMAP_WEB_API_KEY;
+      if (!key) {
+        throw new Error('Amap API Key not configured');
+      }
+      return key;
     })
 })

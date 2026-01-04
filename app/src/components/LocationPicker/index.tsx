@@ -57,8 +57,10 @@ export const LocationPicker = observer(({
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
-  const amapKey = (import.meta as any).env?.NEXT_PUBLIC_AMAP_WEB_API_KEY || (import.meta as any).env?.VITE_AMAP_WEB_API_KEY || (import.meta as any).env?.AMAP_WEB_API_KEY;
   const locationFetchedRef = useRef(false);
+
+  // 从配置文件读取高德 API Key（Docker 容器启动时注入）
+  const blinkoConfig = (window as any).__BLINKO_CONFIG__ || {};
 
   // 当 initialLocations 变化时更新 locations 状态
   useEffect(() => {
@@ -101,8 +103,25 @@ export const LocationPicker = observer(({
   const loadAmap = useCallback(async () => {
     if (typeof window === 'undefined') return null;
     if ((window as any).AMap) return (window as any).AMap;
+
+    // 获取 API Key：优先级：配置文件 > 后端 API
+    let amapKey: string | undefined = blinkoConfig.VITE_AMAP_WEB_API_KEY ||
+                                   blinkoConfig.NEXT_PUBLIC_AMAP_WEB_API_KEY ||
+                                   blinkoConfig.AMAP_WEB_API_KEY;
+
+    // 如果配置文件中没有，尝试从后端 API 获取
     if (!amapKey) {
-      throw new Error('缺少高德 Web API Key，请配置 NEXT_PUBLIC_AMAP_WEB_API_KEY');
+      try {
+        const keyResult = await api.config.getAmapKey.query();
+        amapKey = keyResult;
+        console.log('[LocationPicker] Got Amap key from server');
+      } catch (error) {
+        console.error('[LocationPicker] Failed to get Amap key from server:', error);
+      }
+    }
+
+    if (!amapKey || amapKey.includes('__')) {
+      throw new Error('缺少高德 Web API Key，请在 docker-compose.yml 中配置 VITE_AMAP_WEB_API_KEY');
     }
 
     await new Promise<void>((resolve, reject) => {
@@ -127,7 +146,7 @@ export const LocationPicker = observer(({
     });
 
     return (window as any).AMap;
-  }, [amapKey]);
+  }, []);
 
   const focusMapOnLocation = useCallback((loc: { latitude: number; longitude: number }) => {
     if (!mapInstanceRef.current || !markerRef.current) return;

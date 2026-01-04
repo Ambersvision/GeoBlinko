@@ -60,9 +60,6 @@ RUN if [ "$CACHEBUST" != "1" ]; then \
 # Build seed
 RUN bun run build:seed
 
-RUN printf '#!/bin/sh\necho "Current Environment: $NODE_ENV"\nnpx prisma migrate deploy\nnode server/seed.js\nnode server/index.js\n' > start.sh && \
-    chmod +x start.sh
-
 
 FROM node:20-alpine as init-downloader
 
@@ -105,7 +102,7 @@ COPY --from=builder /app/dist ./server
 COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
-COPY --from=builder /app/start.sh ./
+COPY start.sh ./
 COPY --from=init-downloader /app/dumb-init /usr/local/bin/dumb-init
 
 RUN chmod +x ./start.sh && \

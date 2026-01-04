@@ -412,7 +412,10 @@ jobs:
           fetch-depth: 0
       
       - name: Fetch all tags
-        run: git fetch --tags
+        run: |
+          # Delete all local tags to avoid conflicts when fetching from remote
+          git tag -l | xargs -r git tag -d
+          git fetch --tags --force
       
       - name: Create Changelog
         id: changelog

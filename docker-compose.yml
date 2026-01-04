@@ -36,7 +36,10 @@ services:
           memory: 512M
 
   blinko-website:
-    image: ambersvision/geoblinko:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: geoblinko-blinko-website:latest
     container_name: Geoblinko-website
     restart: unless-stopped
     depends_on:
