@@ -11,11 +11,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres # 请将此处改为您自己的用户名
+      POSTGRES_PASSWORD: postgres # 请将此处改为您自己的密码
       TZ: "Asia/Shanghai"
-    ports:
-      - "15432:5432"
+    # ports: # 可选，仅用于本地调试
+    #   - "15432:5432" # 可选，仅用于本地调试
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -39,9 +39,6 @@ services:
     image: ambersvision/geoblinko:latest
     container_name: Geoblinko-website
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./data/appdata:/app/.blinko
       - ./data/backup:/app/backup
@@ -50,20 +47,21 @@ services:
       TZ: "Asia/Shanghai"
       # 请将以下IP地址改为您的飞牛NAS的实际IP地址
       NEXTAUTH_URL: "http://localhost:2222"
+      # 请将以下IP地址改为您的飞牛NAS的实际IP地址
       NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
       NEXTAUTH_SECRET: "postgres"
       # API Key 注入配置（运行时替换占位符）
-      INJECT_VARS: "VITE_AMAP_WEB_API_KEY=494ffc7b7f40fccd775ca3227e6d8804 NEXT_PUBLIC_AMAP_WEB_API_KEY=494ffc7b7f40fccd775ca3227e6d8804 AMAP_WEB_API_KEY=ed4327e40666552c8f0d543748b18a38"
+      INJECT_VARS: "VITE_AMAP_WEB_API_KEY=your-amap-web-api-key NEXT_PUBLIC_AMAP_WEB_API_KEY=your-amap-web-api-key AMAP_WEB_API_KEY=your-amap-web-api-key"
       # Frontend (Vite) - exposed to client bundle
-      VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
+      VITE_AMAP_WEB_API_KEY: "your-amap-web-api-key"
       # Legacy / other parts (kept for compatibility)
-      NEXT_PUBLIC_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804"
-      AMAP_WEB_API_KEY: "ed4327e40666552c8f0d543748b18a38"
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres"
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "your-amap-web-api-key"
+      AMAP_WEB_API_KEY: "your-amap-web-api-key"
+      POSTGRES_USER: "postgres" # 请将此处改为您自己的用户名
+      POSTGRES_PASSWORD: "postgres" # 请将此处改为您自己的密码
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres" # 请根据实际情况修改数据库连接URL
     ports:
-      - "2222:1111"
+      - "2222:1111" # 请根据实际情况修改端口映射
     healthcheck:
       test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:1111/"]
       interval: 30s
