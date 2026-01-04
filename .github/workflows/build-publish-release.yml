@@ -164,7 +164,7 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           context: ./
-          file: dockerfile
+          file: Dockerfile
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }}
           cache-to: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }},mode=max
