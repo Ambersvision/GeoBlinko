@@ -93,7 +93,12 @@ jobs:
           jq '.version = "${{ needs.set-version.outputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
           echo "Updated tauri.conf.json:"
           cat app/src-tauri/tauri.conf.json
-      
+
+      - name: Switch to main branch
+        run: |
+          git checkout main
+          echo "Switched to main branch"
+
       - name: Commit and Push Updated Version
         run: |
           git config --global user.name 'GitHub Actions'

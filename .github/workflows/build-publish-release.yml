@@ -75,8 +75,10 @@ jobs:
             # Commit changes
             git add package.json
             git commit -m "chore: Update version to ${{ env.VERSION }}"
-            git pull --rebase origin ${GITHUB_REF}
-            git push origin HEAD:${GITHUB_REF}
+            # Switch to main branch first
+            git checkout main
+            git pull --rebase origin main
+            git push origin main
           else
             echo "Version ${{ env.VERSION }} already set in package.json, skipping update"
           fi
