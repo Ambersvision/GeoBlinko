@@ -22,7 +22,7 @@ import { PluginRender } from "@/store/plugin/pluginRender";
 import { useLocation } from "react-router-dom";
 import { SwipeableCard } from "./SwipeableCard";
 import { api } from "@/lib/trpc";
-import { LocationDisplay } from "@/components/LocationDisplay";
+import { LocationsContent } from "@/components/BlinkoCard/locationsContent";
 import { eventBus } from "@/lib/event";
 
 
@@ -195,19 +195,13 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
                   ))}
 
                 <CardFooter blinkoItem={blinkoItem} blinko={blinko} isShareMode={isShareMode} />
-                
-                {/* 地理位置显示 */}
+
+                {/* 地理位置显示（统一 UI 风格）*/}
                 {blinkoItem.metadata?.locations && blinkoItem.metadata.locations.length > 0 && (
-                  <LocationDisplay
+                  <LocationsContent
                     locations={blinkoItem.metadata.locations}
-                    isEditable={!isShareMode}
-                    onEdit={() => {
-                      // 编辑位置 - 直接打开编辑对话框并自动打开位置选择器
-                      if (isShareMode) return;
-                      blinko.curSelectedNote = _.cloneDeep(blinkoItem);
-                      ShowEditBlinkoModel('5xl', 'edit', undefined, true);
-                    }}
-                    compact={!isExpanded}
+                    noteId={blinkoItem.id}
+                    className={isExpanded ? 'my-4' : 'my-2'}
                   />
                 )}
                 
