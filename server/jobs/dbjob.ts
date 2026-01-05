@@ -54,6 +54,7 @@ export class DBJob extends BaseScheduleJob {
           createdAt: true,
           updatedAt: true,
           type: true,
+          metadata: true,
           attachments: true,
           tags: true,
           references: true,
@@ -332,6 +333,7 @@ export class DBJob extends BaseScheduleJob {
               type: note.type,
               isTop: note.isTop,
               isShare: note.isShare,
+              metadata: note.metadata,
             });
 
             if (createdNote.id) {
@@ -342,6 +344,7 @@ export class DBJob extends BaseScheduleJob {
                   accountId: account.id,
                   createdAt: note.createdAt,
                   updatedAt: note.updatedAt,
+                  metadata: note.metadata,
                 }
               });
               if (note.attachments?.length) {
@@ -422,6 +425,7 @@ export class DBJob extends BaseScheduleJob {
         content: true,
         attachments: true,
         createdAt: true,
+        metadata: true,
       }
     });
     if (notes.length === 0) {
@@ -440,9 +444,13 @@ export class DBJob extends BaseScheduleJob {
       }
 
       if (format === 'csv') {
-        const csvContent = ['ID,Content,Created At'].concat(
-          notes.map(note => `${note.id},"${note.content.replace(/"/g, '""')}",${note.createdAt.toISOString()}`)
-        ).join('\n');
+        const csvHeader = ['ID', 'Content', 'Created At', 'Latitude', 'Longitude'];
+        const csvRows = notes.map(note => {
+          const latitude = note.metadata?.latitude ?? '';
+          const longitude = note.metadata?.longitude ?? '';
+          return `${note.id},"${note.content.replace(/"/g, '""')}",${note.createdAt.toISOString()},"${latitude}","${longitude}"`;
+        });
+        const csvContent = [csvHeader.join(','), ...csvRows].join('\n');
         await writeFile(path.join(exportDir, 'notes.csv'), csvContent);
       } else if (format === 'json') {
         await writeFile(
@@ -452,6 +460,17 @@ export class DBJob extends BaseScheduleJob {
       } else {
         await Promise.all(notes.map(async (note) => {
           let mdContent = note.content;
+
+          // Add location metadata to markdown
+          if (note.metadata?.latitude && note.metadata?.longitude) {
+            mdContent = `---
+location:
+  latitude: ${note.metadata.latitude}
+  longitude: ${note.metadata.longitude}
+---
+
+${mdContent}`;
+          }
 
           if (note.attachments?.length) {
             await Promise.all(note.attachments.map(async (attachment) => {
