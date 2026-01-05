@@ -32,6 +32,7 @@ export const ExportSetting = observer(() => {
   const now = today(getLocalTimeZone());
 
   const formatOptions = [
+    { label: "Blinko Backup (.bko)", value: "blinko" },
     { label: "Markdown", value: "markdown" },
     { label: "JSON", value: "json" },
     { label: "CSV", value: "csv" }
@@ -40,20 +41,35 @@ export const ExportSetting = observer(() => {
 
   const handleExport = async () => {
     RootStore.Get(ToastPlugin).loading(t('exporting'), { id: 'exporting' })
-    const exportParams: any = {
-      baseURL: window.location.origin,
-      format: exportFormat as 'markdown' | 'csv' | 'json'
-    };
 
-    if (dateRange.start && dateRange.end) {
-      exportParams.startDate = new Date(dateRange.start.toString());
-      exportParams.endDate = new Date(dateRange.end.toString());
-    }
     try {
-      const res = await PromiseCall(api.task.exportMarkdown.mutate(exportParams));
-      RootStore.Get(ToastPlugin).dismiss('exporting')
-      if (res?.downloadUrl) {
-        downloadFromLink(getBlinkoEndpoint(res.downloadUrl));
+      if (exportFormat === 'blinko') {
+        // Export to .bko format (full backup)
+        const res = await PromiseCall(api.task.exportBlinkoBackup.mutate({
+          baseURL: window.location.origin
+        }));
+        RootStore.Get(ToastPlugin).dismiss('exporting')
+        if (res?.filePath) {
+          downloadFromLink(getBlinkoEndpoint(res.filePath));
+          RootStore.Get(ToastPlugin).success('Backup exported successfully')
+        }
+      } else {
+        // Export to Markdown/CSV/JSON format
+        const exportParams: any = {
+          baseURL: window.location.origin,
+          format: exportFormat as 'markdown' | 'csv' | 'json'
+        };
+
+        if (dateRange.start && dateRange.end) {
+          exportParams.startDate = new Date(dateRange.start.toString());
+          exportParams.endDate = new Date(dateRange.end.toString());
+        }
+
+        const res = await PromiseCall(api.task.exportMarkdown.mutate(exportParams));
+        RootStore.Get(ToastPlugin).dismiss('exporting')
+        if (res?.downloadUrl) {
+          downloadFromLink(getBlinkoEndpoint(res.downloadUrl));
+        }
       }
     } catch (error) {
       RootStore.Get(ToastPlugin).error(error.message)

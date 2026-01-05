@@ -114,6 +114,29 @@ export const taskRouter = router({
         return { success: true, action: 'updated', cron: time };
       }
     }),
+  exportBlinkoBackup: authProcedure.use(demoAuthMiddleware).use(superAdminAuthMiddleware)
+    .meta({ openapi: { method: 'POST', path: '/v1/tasks/export-blinko-backup', summary: 'Export Blinko backup (.bko)', protect: true, tags: ['Task'] } })
+    .input(z.object({
+      baseURL: z.string().optional()
+    }))
+    .output(z.object({
+      success: z.boolean(),
+      filePath: z.string(),
+      progress: z.any().optional()
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const result = await DBJob.RunTask();
+        return {
+          success: true,
+          filePath: result.filePath,
+          progress: result.progress
+        };
+      } catch (error) {
+        throw new Error(error as string);
+      }
+    }),
+
   importFromBlinko: authProcedure.use(demoAuthMiddleware).use(superAdminAuthMiddleware)
     .input(z.object({
       filePath: z.string()
