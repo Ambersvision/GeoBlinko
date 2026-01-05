@@ -126,6 +126,9 @@ jobs:
           echo "Expected version: ${{ env.VERSION }}"
           if [ "$PACKAGE_VERSION" != "${{ env.VERSION }}" ]; then
             echo "::error::Package.json version ($PACKAGE_VERSION) does not match expected version (${{ env.VERSION }})"
+            echo "::error::Please either:"
+            echo "::error::  1. Update package.json version to ${{ env.VERSION }}"
+            echo "::error::  2. Or trigger workflow with correct version: $PACKAGE_VERSION"
             exit 1
           fi
 

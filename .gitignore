@@ -35,3 +35,4 @@ dev-dist
 target
 server/public
 data/
+docker-compose_local.yml

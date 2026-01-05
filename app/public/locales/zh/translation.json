@@ -889,6 +889,14 @@
       "minutesAgo": "分钟前",
       "hoursAgo": "小时前"
     },
+    "detail": {
+      "latitude": "纬度",
+      "longitude": "经度",
+      "recordedAt": "记录时间",
+      "accuracy": "定位精度",
+      "openApp": "打开地图 App",
+      "openWeb": "打开网页地图"
+    },
     "filter": {
       "title": "位置",
       "hasLocation": "有位置",

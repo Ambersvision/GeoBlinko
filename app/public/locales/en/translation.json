@@ -872,6 +872,14 @@
       "minutesAgo": "minutes ago",
       "hoursAgo": "hours ago"
     },
+    "detail": {
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "recordedAt": "Recorded At",
+      "accuracy": "Accuracy",
+      "openApp": "Open Map App",
+      "openWeb": "Open Web Map"
+    },
     "filter": {
       "title": "Location",
       "hasLocation": "Has Location",
