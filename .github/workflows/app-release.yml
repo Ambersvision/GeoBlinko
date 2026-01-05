@@ -371,13 +371,17 @@ jobs:
         run: |
           # Check for universal APK directory
           APK_DIR="app/src-tauri/gen/android/app/build/outputs/apk/universal/release"
+          APK_BASE_DIR="app/src-tauri/gen/android/app/build/outputs/apk/release"
+          FINAL_APK_DIR=""
+          
           if [ -d "$APK_DIR" ]; then
             cd "$APK_DIR"
+            FINAL_APK_DIR="$APK_DIR"
           else
             # Fallback to regular release directory
-            APK_DIR="app/src-tauri/gen/android/app/build/outputs/apk/release"
-            if [ -d "$APK_DIR" ]; then
-              cd "$APK_DIR"
+            if [ -d "$APK_BASE_DIR" ]; then
+              cd "$APK_BASE_DIR"
+              FINAL_APK_DIR="$APK_BASE_DIR"
             else
               echo "ERROR: APK directory not found, listing available directories:"
               ls -R app/src-tauri/gen/android/app/build/outputs/apk/ 2>/dev/null || true
@@ -395,12 +399,15 @@ jobs:
           echo "Warning: Could not find APK file to rename"
           echo "Final APK file:"
           ls -la
+          
+          # Save final APK directory for upload
+          echo "FINAL_APK_DIR=$FINAL_APK_DIR" >> $GITHUB_ENV
 
       - name: Upload Android APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: blinko-android-${{ needs.set-version.outputs.version }}
-          path: app/src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+          path: ${{ env.FINAL_APK_DIR }}/*.apk
           if-no-files-found: warn
 
   # Generate changelog after all builds are complete
