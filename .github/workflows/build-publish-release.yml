@@ -163,16 +163,16 @@ jobs:
       - name: Build and export
         id: build
         uses: docker/build-push-action@v5
-      with:
-        platforms: ${{ matrix.platform }}
-        context: ./
-        file: Dockerfile
-        labels: ${{ steps.meta.outputs.labels }}
-        build-args: |
-          BUILD_NO_MINIFY=true
-        cache-from: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }}
-        cache-to: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }},mode=max
-        outputs: type=image,name=ambersvision/geoblinko,push-by-digest=true,name-canonical=true,push=true
+        with:
+          platforms: ${{ matrix.platform }}
+          context: ./
+          file: Dockerfile
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_NO_MINIFY=true
+          cache-from: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }},mode=max
+          outputs: type=image,name=ambersvision/geoblinko,push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
