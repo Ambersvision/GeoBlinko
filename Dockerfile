@@ -59,13 +59,8 @@ RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
     fi
 
 # Build App (These layers will be rebuilt when source code changes)
-RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
-        echo "Building without minification (BUILD_NO_MINIFY=true)"; \
-        NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web; \
-    else \
-        echo "Building with default configuration"; \
-        NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \
-    fi
+RUN echo "Starting build with BUILD_NO_MINIFY=$BUILD_NO_MINIFY"
+RUN NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=${BUILD_NO_MINIFY} bun run build:web
 
 # Build seed
 RUN bun run build:seed
