@@ -34,7 +34,7 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     fi
 
 # Install Dependencies (Cached Layer)
-RUN bun install --unsafe-perm --ignore-scripts || true
+RUN bun install --unsafe-perm --ignore-scripts
 
 # Cache breaker for source code changes
 ARG CACHEBUST=1
@@ -53,25 +53,34 @@ RUN bunx prisma generate
 
 # 禁用压缩（如果需要）
 RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
-      sed -i "s/disableMinify \\? false : 'terser'/false/" app/vite.config.ts || \
-      sed -i '' "s/disableMinify \\? false : 'terser'/false/" app/vite.config.ts; \
+      echo "BUILD_NO_MINIFY is true, VITE_NO_MINIFY will be set during build"; \
+      echo "Current vite.config.ts minify line:"; \
+      grep -n "minify:" app/vite.config.ts || true; \
     fi
 
 # Build App (These layers will be rebuilt when source code changes)
-RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
+RUN echo "=== Build Configuration ===" && \
+    echo "BUILD_NO_MINIFY=$BUILD_NO_MINIFY" && \
+    echo "CACHEBUST=$CACHEBUST" && \
+    echo "========================" && \
+    if [ "$BUILD_NO_MINIFY" = "true" ]; then \
         echo "Building without minification..." && \
-        NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web; \
+        echo "Setting VITE_NO_MINIFY=true" && \
+        NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web || (echo "Build failed with exit code $?" && exit 1); \
     elif [ "$CACHEBUST" != "1" ]; then \
-        NODE_OPTIONS="--max-old-space-size=8192" TURBO_CACHE_DISABLED=true bun run build:web; \
+        echo "Building with cache disabled..." && \
+        NODE_OPTIONS="--max-old-space-size=8192" TURBO_CACHE_DISABLED=true bun run build:web || (echo "Build failed with exit code $?" && exit 1); \
     else \
-        NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \
-    fi
+        echo "Building with default configuration..." && \
+        NODE_OPTIONS="--max-old-space-size=8192" bun run build:web || (echo "Build failed with exit code $?" && exit 1); \
+    fi && \
+    echo "Build completed successfully"
 
 # Build seed
 RUN bun run build:seed
 
 
-FROM node:20-alpine as init-downloader
+FROM node:20-alpine AS init-downloader
 
 WORKDIR /app
 
