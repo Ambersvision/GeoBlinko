@@ -113,7 +113,7 @@ export const LocationPicker = observer(({
     if (!amapKey) {
       try {
         const keyResult = await api.config.getAmapKey.query();
-        amapKey = keyResult;
+        amapKey = keyResult.key;
         console.log('[LocationPicker] Got Amap key from server');
       } catch (error) {
         console.error('[LocationPicker] Failed to get Amap key from server:', error);
