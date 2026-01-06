@@ -343,6 +343,19 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
+      - name: Clean and reinitialize Android project
+        run: |
+          cd app
+          # Remove gen/android directory to force reinitialization
+          if [ -d "src-tauri/gen/android" ]; then
+            echo "Removing existing gen/android directory..."
+            rm -rf src-tauri/gen/android
+          fi
+          # Reinitialize Android project
+          echo "Reinitializing Android project..."
+          bun run tauri android init --no-interactive || true
+          echo "Android project reinitialized"
+
       - name: Create debug keystore for release build
         run: |
           mkdir -p app/src-tauri/gen/android
