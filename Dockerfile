@@ -59,22 +59,13 @@ RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
     fi
 
 # Build App (These layers will be rebuilt when source code changes)
-RUN echo "=== Build Configuration ===" && \
-    echo "BUILD_NO_MINIFY=$BUILD_NO_MINIFY" && \
-    echo "CACHEBUST=$CACHEBUST" && \
-    echo "========================" && \
-    if [ "$BUILD_NO_MINIFY" = "true" ]; then \
-        echo "Building without minification..." && \
-        echo "Setting VITE_NO_MINIFY=true" && \
-        NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web || (echo "Build failed with exit code $?" && exit 1); \
-    elif [ "$CACHEBUST" != "1" ]; then \
-        echo "Building with cache disabled..." && \
-        NODE_OPTIONS="--max-old-space-size=8192" TURBO_CACHE_DISABLED=true bun run build:web || (echo "Build failed with exit code $?" && exit 1); \
+RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
+        echo "Building without minification (BUILD_NO_MINIFY=true)"; \
+        NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web; \
     else \
-        echo "Building with default configuration..." && \
-        NODE_OPTIONS="--max-old-space-size=8192" bun run build:web || (echo "Build failed with exit code $?" && exit 1); \
-    fi && \
-    echo "Build completed successfully"
+        echo "Building with default configuration"; \
+        NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \
+    fi
 
 # Build seed
 RUN bun run build:seed
