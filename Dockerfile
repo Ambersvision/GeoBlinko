@@ -3,6 +3,7 @@ FROM oven/bun:1.2.8 AS builder
 
 # Add Build Arguments
 ARG USE_MIRROR=false
+ARG BUILD_NO_MINIFY=false
 
 WORKDIR /app
 
@@ -50,8 +51,17 @@ RUN if [ "$CACHEBUST" != "1" ]; then rm -rf node_modules/.cache; fi
 # Generate Prisma Client
 RUN bunx prisma generate
 
+# 禁用压缩（如果需要）
+RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
+      sed -i 's/rollupOptions: {/minify: false,\n    rollupOptions: {/' app/vite.config.ts || \
+      sed -i '' 's/rollupOptions: {/minify: false,\n    rollupOptions: {/' app/vite.config.ts; \
+    fi
+
 # Build App (These layers will be rebuilt when source code changes)
-RUN if [ "$CACHEBUST" != "1" ]; then \
+RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
+        echo "Building without minification..." && \
+        NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web; \
+    elif [ "$CACHEBUST" != "1" ]; then \
         NODE_OPTIONS="--max-old-space-size=8192" TURBO_CACHE_DISABLED=true bun run build:web; \
     else \
         NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \

@@ -1,0 +1,100 @@
+# GeoBlinko NAS Docker Compose 配置
+# 版本: 1.10.9
+# 使用说明:
+# 1. 复制 .env.example 为 .env
+# 2. 编辑 .env 文件，配置您的 NAS IP 和高德地图 API Key
+# 3. 运行: docker-compose -f docker-compose.nas.yml up -d
+
+version: "3.8"
+
+networks:
+  geoblinko-net:
+    driver: bridge
+
+services:
+  postgres:
+    # 使用国内镜像源加速下载
+    image: docker.m.daocloud.io/library/postgres:16
+    container_name: Geoblinko-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres # 请在 .env 文件中修改
+      POSTGRES_PASSWORD: postgres # 请在 .env 文件中修改
+      TZ: "Asia/Shanghai"
+    # 端口映射（可选，仅用于本地调试）
+    # ports:
+    #   - "15432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - geoblinko-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  blinko-website:
+    image: ambersvision/geoblinko:1.10.9
+    container_name: Geoblinko-website
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data/appdata:/app/.blinko
+      - ./data/backup:/app/backup
+    environment:
+      NODE_ENV: production
+      TZ: "Asia/Shanghai"
+      # 禁用 PWA 避免缓存问题（建议在 NAS 上禁用）
+      DISABLE_PWA: "true"
+      # NAS IP 地址配置（从 .env 文件读取）
+      NEXTAUTH_URL: "http://${NAS_IP:-localhost}:2222"
+      NEXT_PUBLIC_BASE_URL: "http://${NAS_IP:-localhost}:2222"
+      # 信任反向代理（如果使用反向代理）
+      TRUST_PROXY: "1"
+      NEXTAUTH_SECRET: "${POSTGRES_PASSWORD:-postgres}"
+      # API Key 注入配置（变量名列表，空格分隔）
+      INJECT_VARS: "VITE_AMAP_WEB_API_KEY NEXT_PUBLIC_AMAP_WEB_API_KEY AMAP_WEB_API_KEY"
+      # 高德地图 API Key（从 .env 文件读取）
+      VITE_AMAP_WEB_API_KEY: "${AMAP_WEB_API_KEY}"
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "${AMAP_WEB_API_KEY}"
+      AMAP_WEB_API_KEY: "${AMAP_WEB_API_KEY}"
+      # 数据库连接信息（从 .env 文件读取）
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/postgres?sslmode=disable"
+    ports:
+      - "2222:1111" # 主机端口:容器端口
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:1111/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - geoblinko-net
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+        reservations:
+          cpus: "1"
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

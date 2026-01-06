@@ -19,19 +19,22 @@ git clone https://github.com/Ambersvision/GeoBlinko.git
 cd GeoBlinko
 ```
 
-2. **配置环境变量**（可选）
+2. **配置环境变量**
 
-编辑 `docker-compose.yml` 中的环境变量：
+复制环境变量示例文件并进行配置：
 
-```yaml
-environment:
-  # 必需
-  NEXTAUTH_SECRET: "your-secret-key-here"  # 请更改为随机字符串
-  AMAP_WEB_API_KEY: "your-amap-key"        # 高德地图 API Key
+```bash
+cp .env.example .env
+# 编辑 .env 文件，配置您的 NAS IP 和高德地图 API Key
+```
 
-  # 可选 - 如果需要访问外部
-  NEXTAUTH_URL: "http://your-nas-ip:2222"
-  NEXT_PUBLIC_BASE_URL: "http://your-nas-ip:2222"
+编辑 `.env` 文件中的关键配置：
+```bash
+# 您的 NAS IP 地址（用于外部访问）
+NAS_IP=192.168.0.160
+
+# 高德地图 Web API Key
+AMAP_WEB_API_KEY=your_amap_web_api_key_here
 ```
 
 **获取高德地图 API Key：**
@@ -41,8 +44,10 @@ environment:
 
 3. **启动服务**
 
+使用 NAS 优化的配置文件启动：
+
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose.nas.yml up -d
 ```
 
 4. **访问应用**

@@ -36,7 +36,7 @@ services:
           memory: 512M
 
   blinko-website:
-    image: ambersvision/geoblinko:latest
+    image: ambersvision/geoblinko:1.10.9
     container_name: Geoblinko-website
     restart: unless-stopped
     depends_on:

@@ -7,6 +7,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 const host = process.env.TAURI_DEV_HOST || '0.0.0.0';
 const EXPRESS_PORT = 1111;
 const isDev = process.env.NODE_ENV === 'development';
+// 支持通过环境变量禁用压缩
+const disableMinify = process.env.VITE_NO_MINIFY === 'true';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -129,6 +131,7 @@ export default defineConfig({
     outDir: "../dist/public",
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
+    minify: disableMinify ? false : 'terser',
     rollupOptions: {
       output: {
         manualChunks: (id) => {

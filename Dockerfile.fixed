@@ -1,0 +1,76 @@
+# 使用官方构建配置，但修改前端构建选项
+FROM oven/bun:1.2.8 AS builder
+
+WORKDIR /app
+
+# 设置环境变量
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
+ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
+ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
+ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+
+# 复制依赖文件
+COPY package.json bun.lock turbo.json tsconfig.json ./
+COPY app/package.json app/
+COPY server/package.json server/
+COPY shared/package.json shared/
+COPY app/tauri-plugin-blinko app/tauri-plugin-blinko/
+
+# 使用国内镜像
+RUN echo "registry=https://registry.npmmirror.com" > .npmrc
+
+# 安装依赖
+RUN bun install --unsafe-perm --ignore-scripts || true
+
+# 复制源码
+COPY . .
+
+# 生成 Prisma Client
+RUN bunx prisma generate
+
+# 修改 vite.config.ts 禁用压缩
+RUN sed -i 's/rollupOptions: {/minify: false,\n    rollupOptions: {/' app/vite.config.ts || echo "minify: false," >> app/vite.config.ts
+
+# 构建应用
+RUN NODE_OPTIONS="--max-old-space-size=8192" bun run build:web
+
+# 构建 seed
+RUN bun run build:seed
+
+# 运行时阶段
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV TRUST_PROXY=1
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
+ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
+ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
+
+RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc-dev linux-headers
+
+RUN npm config set registry https://registry.npmmirror.com
+
+# 复制构建产物
+COPY --from=builder /app/dist ./server
+COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
+COPY start.sh ./
+
+# 安装运行时依赖
+RUN npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@5.21.1 && \
+    npm install -g prisma@5.21.1 && \
+    npm install sqlite3@5.1.7 && \
+    npm install llamaindex @langchain/community@0.3.40 && \
+    npm install @libsql/client @libsql/core && \
+    npx prisma generate && \
+    rm -rf /tmp/* && \
+    apk del python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
+    rm -rf /var/cache/apk/*
+
+EXPOSE 1111
+
+CMD ["node", "/app/server/index.js"]
