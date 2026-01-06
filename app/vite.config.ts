@@ -83,8 +83,8 @@ export default defineConfig({
           orientation: 'portrait'
         },
         workbox: {
-          // Maximum file size to cache (10MB)
-          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+          // Maximum file size to cache (20MB to handle large bundles)
+          maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
           // Don't cache API requests
           navigateFallbackDenylist: [/^\/api\/.*/],
           // Clean old caches automatically
