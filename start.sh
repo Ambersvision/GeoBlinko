@@ -31,6 +31,16 @@ done
 echo "};" >> "$CONFIG_FILE"
 
 echo "config.js generated successfully at $CONFIG_FILE"
+
+# 数据库初始化 - 检查是否需要运行 migration
+echo "Checking database initialization..."
+if ! npx prisma db pull 2>/dev/null | grep -q "accounts"; then
+    echo "Database not initialized, running migrations..."
+    npx prisma migrate deploy --skip-generate || echo "Migration failed or database already initialized"
+else
+    echo "Database tables already exist, skipping migration"
+fi
+
 echo "Starting GeoBlinko server..."
 
 # 启动服务器（使用 node 而不是 bun）
