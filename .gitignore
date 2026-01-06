@@ -37,3 +37,7 @@ server/public
 data/
 docker-compose_local.yml
 docker-compose.nas.yml
+NAS_DEPLOYMENT.md
+install-nas.sh
+docker-compose_build.yml
+.env.example
