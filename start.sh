@@ -36,7 +36,7 @@ echo "config.js generated successfully at $CONFIG_FILE"
 echo "Checking database initialization..."
 if ! npx prisma db pull 2>/dev/null | grep -q "accounts"; then
     echo "Database not initialized, running migrations..."
-    npx prisma migrate deploy --skip-generate || echo "Migration failed or database already initialized"
+    npx prisma migrate deploy || echo "Migration failed or database already initialized"
 else
     echo "Database tables already exist, skipping migration"
 fi
