@@ -176,7 +176,8 @@ async function setupApiRoutes(app: express.Application) {
       'Cache-Control': 'public, max-age=604800, immutable',
       'Expires': new Date(Date.now() + 604800000).toUTCString()
     });
-    res.sendFile(path.resolve(__dirname, './lute.min.js'));
+    // Return 404 since this file doesn't exist in current build
+    return res.status(404).json({ error: 'File not found' });
   });
   app.use('/plugins', pluginRouter);
 
