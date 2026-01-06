@@ -114,7 +114,7 @@ export const taskRouter = router({
         return { success: true, action: 'updated', cron: time };
       }
     }),
-  exportBlinkoBackup: authProcedure.use(demoAuthMiddleware).use(superAdminAuthMiddleware)
+  exportBlinkoBackup: authProcedure.use(demoAuthMiddleware)
     .meta({ openapi: { method: 'POST', path: '/v1/tasks/export-blinko-backup', summary: 'Export Blinko backup (.bko)', protect: true, tags: ['Task'] } })
     .input(z.object({
       baseURL: z.string().optional()

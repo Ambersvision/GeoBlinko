@@ -125,8 +125,8 @@ router.get(/.*/, async (req, res) => {
     }
   }
 
-  if (fullPath.endsWith('.bko') && token?.role !== 'superadmin') {
-    return res.status(401).json({ error: "Only superadmin can access" });
+  if (fullPath.endsWith('.bko') && !token) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const sanitizedPath = fullPath.replace(/^[./\\]+/, '');

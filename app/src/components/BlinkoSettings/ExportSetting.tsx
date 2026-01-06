@@ -15,11 +15,9 @@ import { Icon } from '@/components/Common/Iconify/icons';
 import { CollapsibleCard } from "@/components/Common/CollapsibleCard";
 import { getBlinkoEndpoint } from "@/lib/blinkoEndpoint";
 import { downloadFromLink } from "@/lib/tauriHelper";
-import { UserStore } from "@/store/user";
 
 export const ExportSetting = observer(() => {
   const { t } = useTranslation();
-  const user = RootStore.Get(UserStore);
   const [exportFormat, setExportFormat] = useState("markdown");
 
   const [dateRange, setDateRange] = useState<{
@@ -32,21 +30,13 @@ export const ExportSetting = observer(() => {
   const [focusedValue, setFocusedValue] = useState(today(getLocalTimeZone()));
 
   const now = today(getLocalTimeZone());
-  const isSuperAdmin = user.isSuperAdmin;
 
   const formatOptions = [
-    { label: "Blinko Backup (.bko)", value: "blinko", requireSuperAdmin: true },
-    { label: "Markdown", value: "markdown", requireSuperAdmin: false },
-    { label: "JSON", value: "json", requireSuperAdmin: false },
-    { label: "CSV", value: "csv", requireSuperAdmin: false }
+    { label: "Blinko Backup (.bko)", value: "blinko" },
+    { label: "Markdown", value: "markdown" },
+    { label: "JSON", value: "json" },
+    { label: "CSV", value: "csv" }
   ];
-
-  const availableFormats = formatOptions.filter(opt => !opt.requireSuperAdmin || isSuperAdmin);
-
-  // If current format is not available (e.g., non-superadmin had selected blinko), reset to markdown
-  if (!isSuperAdmin && exportFormat === 'blinko') {
-    setExportFormat('markdown');
-  }
 
 
   const handleExport = async () => {
@@ -100,7 +90,7 @@ export const ExportSetting = observer(() => {
               onChange={e => setExportFormat(e.target.value)}
               className="w-[200px]"
             >
-              {availableFormats.map((item) => (
+              {formatOptions.map((item) => (
                 <SelectItem key={item.value}>{t(item.label)}</SelectItem>
               ))}
             </Select>
