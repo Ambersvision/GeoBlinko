@@ -353,7 +353,7 @@ jobs:
           fi
           # Reinitialize Android project
           echo "Reinitializing Android project..."
-          bun run tauri android init --no-interactive || true
+          bun run tauri android init --ci
           echo "Android project reinitialized"
 
       - name: Create debug keystore for release build
