@@ -59,7 +59,11 @@ RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
     fi
 
 # Build App (These layers will be rebuilt when source code changes)
-RUN NODE_OPTIONS="--max-old-space-size=8192" bun run build:web
+RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
+      NODE_OPTIONS="--max-old-space-size=8192" VITE_NO_MINIFY=true bun run build:web; \
+    else \
+      NODE_OPTIONS="--max-old-space-size=8192" bun run build:web; \
+    fi
 
 # Build seed
 RUN bun run build:seed
