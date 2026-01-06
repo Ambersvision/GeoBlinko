@@ -36,3 +36,4 @@ target
 server/public
 data/
 docker-compose_local.yml
+docker-compose.nas.yml

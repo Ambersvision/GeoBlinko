@@ -19,23 +19,20 @@ git clone https://github.com/Ambersvision/GeoBlinko.git
 cd GeoBlinko
 ```
 
-2. **配置环境变量**
+2. **编辑配置文件**
 
-复制环境变量示例文件并进行配置：
+编辑 `docker-compose.nas.yml` 文件，配置以下关键参数：
 
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，配置您的 NAS IP 和高德地图 API Key
+# 使用文本编辑器打开并修改以下配置
+nano docker-compose.nas.yml
 ```
 
-编辑 `.env` 文件中的关键配置：
-```bash
-# 您的 NAS IP 地址（用于外部访问）
-NAS_IP=192.168.0.160
+**需要修改的配置项：**
 
-# 高德地图 Web API Key
-AMAP_WEB_API_KEY=your_amap_web_api_key_here
-```
+1. **NAS IP 地址**（搜索 `192.168.0.160`，替换为您的 NAS 实际 IP）
+2. **高德地图 API Key**（搜索 `your_amap_web_api_key_here`，替换为您的高德地图 Web API Key）
+3. **数据库密码**（搜索 `postgres123456`，替换为您自己的密码，并确保 `POSTGRES_PASSWORD` 和 `NEXTAUTH_SECRET` 一致）
 
 **获取高德地图 API Key：**
 - 访问 [高德开放平台](https://console.amap.com/)
@@ -43,8 +40,6 @@ AMAP_WEB_API_KEY=your_amap_web_api_key_here
 - 获取 Web API Key
 
 3. **启动服务**
-
-使用 NAS 优化的配置文件启动：
 
 ```bash
 docker-compose -f docker-compose.nas.yml up -d
@@ -215,9 +210,10 @@ location / {
 
 ## 版本信息
 
-当前版本：1.10.3
+当前版本：1.10.9
 
 更新日志：
 - 修复地理位置选择器问题
 - 优化地图初始化
 - 移除 eventBus 依赖，改用 props 回调
+- 简化 NAS 部署配置，移除 .env 依赖

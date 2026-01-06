@@ -1,9 +1,13 @@
 # GeoBlinko NAS Docker Compose 配置
 # 版本: 1.10.9
 # 使用说明:
-# 1. 复制 .env.example 为 .env
-# 2. 编辑 .env 文件，配置您的 NAS IP 和高德地图 API Key
-# 3. 运行: docker-compose -f docker-compose.nas.yml up -d
+# 1. 编辑本文件，配置您的 NAS IP 和高德地图 API Key
+# 2. 运行: docker-compose -f docker-compose.nas.yml up -d
+#
+# 重要配置：
+# - 将 NAS_IP 替换为您的 NAS 实际 IP 地址
+# - 将 AMAP_WEB_API_KEY 替换为您的高德地图 Web API Key
+# - 如需修改数据库密码，请同时更新 POSTGRES_PASSWORD 和 NEXTAUTH_SECRET
 
 version: "3.8"
 
@@ -19,8 +23,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: postgres # 请在 .env 文件中修改
-      POSTGRES_PASSWORD: postgres # 请在 .env 文件中修改
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres # 请修改此密码
       TZ: "Asia/Shanghai"
     # 端口映射（可选，仅用于本地调试）
     # ports:
@@ -59,22 +63,24 @@ services:
       TZ: "Asia/Shanghai"
       # 禁用 PWA 避免缓存问题（建议在 NAS 上禁用）
       DISABLE_PWA: "true"
-      # NAS IP 地址配置（从 .env 文件读取）
-      NEXTAUTH_URL: "http://${NAS_IP:-localhost}:2222"
-      NEXT_PUBLIC_BASE_URL: "http://${NAS_IP:-localhost}:2222"
+      # NAS IP 地址配置（请替换为您的 NAS IP）
+      NEXTAUTH_URL: "http://192.168.0.160:2222"
+      NEXT_PUBLIC_BASE_URL: "http://192.168.0.160:2222"
       # 信任反向代理（如果使用反向代理）
       TRUST_PROXY: "1"
-      NEXTAUTH_SECRET: "${POSTGRES_PASSWORD:-postgres}"
+      # 认证密钥（请使用与数据库密码相同的值）
+      NEXTAUTH_SECRET: "postgres123456"
       # API Key 注入配置（变量名列表，空格分隔）
       INJECT_VARS: "VITE_AMAP_WEB_API_KEY NEXT_PUBLIC_AMAP_WEB_API_KEY AMAP_WEB_API_KEY"
-      # 高德地图 API Key（从 .env 文件读取）
-      VITE_AMAP_WEB_API_KEY: "${AMAP_WEB_API_KEY}"
-      NEXT_PUBLIC_AMAP_WEB_API_KEY: "${AMAP_WEB_API_KEY}"
-      AMAP_WEB_API_KEY: "${AMAP_WEB_API_KEY}"
-      # 数据库连接信息（从 .env 文件读取）
-      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/postgres?sslmode=disable"
+      # 高德地图 API Key（请替换为您的高德地图 API Key）
+      VITE_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804" # 请将此处改为您自己的高德Web API Key
+      # Legacy / other parts (kept for compatibility)
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "494ffc7b7f40fccd775ca3227e6d8804" # 请将此处改为您自己的高德Web API Key
+      AMAP_WEB_API_KEY: "ed4327e40666552c8f0d543748b18a38" # 请将此处改为您自己的高德Web API Key
+      # 数据库连接信息
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres?sslmode=disable"
     ports:
       - "2222:1111" # 主机端口:容器端口
     healthcheck:

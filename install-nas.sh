@@ -3,7 +3,7 @@ set -e
 
 echo "==================================="
 echo "  GeoBlinko NAS 部署脚本"
-echo "  版本: 1.10.3"
+echo "  版本: 1.10.9"
 echo "==================================="
 echo ""
 
@@ -61,7 +61,7 @@ echo ""
 # 停止旧容器（如果存在）
 if docker ps -a | grep -q "Geoblinko"; then
     echo "🛑 停止旧容器..."
-    docker-compose down
+    docker-compose -f docker-compose.nas.yml down
     echo "✅ 旧容器已停止"
     echo ""
 fi
@@ -80,49 +80,55 @@ else
 fi
 echo ""
 
-# 询问是否配置高德地图 API Key
+# 配置说明
 echo "==================================="
-echo "  高德地图配置"
+echo "  配置说明"
 echo "==================================="
 echo ""
-read -p "是否已有高德地图 API Key？(y/n) " -n 1 -r
+echo "🔧 重要配置项需要手动修改："
+echo "1. NAS IP 地址（用于外部访问）"
+echo "2. 高德地图 API Key（必需，否则地图功能无法使用）"
+echo "3. 数据库密码（建议修改）"
+echo ""
+echo "配置文件: docker-compose.nas.yml"
+echo ""
+echo "📝 需要编辑的行："
+echo "- 第 63 行: NEXTAUTH_URL 中的 IP 地址 (192.168.0.160)"
+echo "- 第 64 行: NEXT_PUBLIC_BASE_URL 中的 IP 地址 (192.168.0.160)"
+echo "- 第 71-73 行: API Key 配置 (your_amap_web_api_key_here)"
+echo "- 第 66 行: NEXTAUTH_SECRET 密码"
+echo "- 第 22 行: POSTGRES_PASSWORD 数据库密码"
+echo ""
+read -p "是否现在编辑配置文件？(y/n) " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    read -p "请输入您的高德地图 API Key: " AMAP_KEY
-    if [ -n "$AMAP_KEY" ]; then
-        # 创建 .env 文件
-        cat > .env.nas <<EOF
-AMAP_WEB_API_KEY=$AMAP_KEY
-NEXT_PUBLIC_AMAP_WEB_API_KEY=$AMAP_KEY
-VITE_AMAP_WEB_API_KEY=$AMAP_KEY
-EOF
-        echo "✅ API Key 已配置"
+    if command -v nano &> /dev/null; then
+        nano docker-compose.nas.yml
+    elif command -v vim &> /dev/null; then
+        vim docker-compose.nas.yml
+    elif command -v vi &> /dev/null; then
+        vi docker-compose.nas.yml
+    else
+        echo "⚠️  未找到文本编辑器，请手动编辑 docker-compose.nas.yml"
+        echo "按 Enter 继续..."
+        read -r
     fi
-else
-    echo "ℹ️  将使用默认配置（部分功能可能受限）"
 fi
 echo ""
 
-# 构建并启动容器
-echo "🏗️  正在构建 Docker 镜像..."
-echo "注意: 首次构建可能需要 10-20 分钟"
+# 拉取镜像并启动容器
+echo "📦 正在拉取 Docker 镜像..."
+echo "注意: 可能需要几分钟下载镜像"
 echo ""
 
-if docker-compose build; then
-    echo "✅ 镜像构建成功"
-else
-    echo "❌ 镜像构建失败"
-    echo "请检查错误信息并重试"
-    exit 1
-fi
-echo ""
+docker-compose -f docker-compose.nas.yml pull
 
 echo "🚀 启动容器..."
-docker-compose up -d
+docker-compose -f docker-compose.nas.yml up -d
 
 # 等待容器启动
 echo "⏳ 等待服务启动..."
-sleep 10
+sleep 15
 
 # 检查容器状态
 if docker ps | grep -q "Geoblinko-website.*Up"; then
@@ -133,14 +139,14 @@ if docker ps | grep -q "Geoblinko-website.*Up"; then
     echo ""
     echo "访问地址: http://localhost:2222"
     echo ""
-    echo "如需从外部访问，请替换 localhost 为您的 NAS IP 地址"
+    echo "如需从外部访问，请确保 docker-compose.nas.yml 中配置了正确的 NAS IP"
     echo ""
-    echo "查看日志: docker-compose logs -f"
-    echo "停止服务: docker-compose down"
+    echo "查看日志: docker-compose -f docker-compose.nas.yml logs -f"
+    echo "停止服务: docker-compose -f docker-compose.nas.yml down"
     echo ""
 else
     echo ""
     echo "❌ 容器启动失败"
-    echo "请查看日志: docker-compose logs"
+    echo "请查看日志: docker-compose -f docker-compose.nas.yml logs"
     exit 1
 fi
