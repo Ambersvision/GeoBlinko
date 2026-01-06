@@ -53,8 +53,8 @@ RUN bunx prisma generate
 
 # 禁用压缩（如果需要）
 RUN if [ "$BUILD_NO_MINIFY" = "true" ]; then \
-      sed -i 's/rollupOptions: {/minify: false,\n    rollupOptions: {/' app/vite.config.ts || \
-      sed -i '' 's/rollupOptions: {/minify: false,\n    rollupOptions: {/' app/vite.config.ts; \
+      sed -i "s/disableMinify \\? false : 'terser'/false/" app/vite.config.ts || \
+      sed -i '' "s/disableMinify \\? false : 'terser'/false/" app/vite.config.ts; \
     fi
 
 # Build App (These layers will be rebuilt when source code changes)

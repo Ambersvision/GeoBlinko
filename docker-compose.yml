@@ -48,6 +48,8 @@ services:
     environment:
       NODE_ENV: production
       TZ: "Asia/Shanghai"
+      # 禁用压缩避免白屏问题
+      VITE_NO_MINIFY: "true"
       # 请将以下IP地址改为您的飞牛NAS的实际IP地址
       NEXTAUTH_URL: "http://localhost:2222"
       # 请将以下IP地址改为您的飞牛NAS的实际IP地址
