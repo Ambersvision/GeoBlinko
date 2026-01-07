@@ -7,8 +7,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 const host = process.env.TAURI_DEV_HOST || '0.0.0.0';
 const EXPRESS_PORT = 1111;
 const isDev = process.env.NODE_ENV === 'development';
-// 支持通过环境变量禁用压缩
-const disableMinify = process.env.VITE_NO_MINIFY === 'true';
+// 强制禁用压缩以避免 JavaScript 压缩导致的运行时错误
+const disableMinify = true;
 
 // https://vitejs.dev/config/
 export default defineConfig({
