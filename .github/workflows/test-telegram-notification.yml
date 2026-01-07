@@ -111,7 +111,7 @@ jobs:
             } catch (error) {
               console.error('Error calling OpenRouter API:', error.message);
               // 如果API调用失败，使用默认消息
-              const defaultMessage = `🚀 Blinko ${{ needs.get-latest-release.outputs.version }} 已发布！\n\n📝 更新日志：\n${{ needs.get-latest-release.outputs.changelog }}\n\n📥 下载链接：\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.get-latest-release.outputs.version }}`;
+              const defaultMessage = `🚀 GeoBlinko ${{ needs.get-latest-release.outputs.version }} 已发布！\n\n📝 更新日志：\n${{ needs.get-latest-release.outputs.changelog }}\n\n📥 下载链接：\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.get-latest-release.outputs.version }}`;
               core.setOutput('message', defaultMessage);
             }
       
@@ -155,7 +155,7 @@ jobs:
             } catch (error) {
               console.error('Error calling OpenRouter API:', error.message);
               // 如果API调用失败，使用默认消息
-              const defaultMessage = `🚀 Blinko ${{ needs.get-latest-release.outputs.version }} has been released!\n\n📝 Changelog:\n${{ needs.get-latest-release.outputs.changelog }}\n\n📥 Download:\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.get-latest-release.outputs.version }}`;
+              const defaultMessage = `🚀 GeoBlinko ${{ needs.get-latest-release.outputs.version }} has been released!\n\n📝 Changelog:\n${{ needs.get-latest-release.outputs.changelog }}\n\n📥 Download:\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.get-latest-release.outputs.version }}`;
               core.setOutput('message', defaultMessage);
             }
 

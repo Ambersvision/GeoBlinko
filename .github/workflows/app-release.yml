@@ -237,7 +237,7 @@ jobs:
           projectPath: 'app'
           args: ${{ matrix.args }}
           tagName: ${{ github.event.inputs.is-test == 'true' && '' || needs.set-version.outputs.version }}
-          releaseName: ${{ github.event.inputs.is-test == 'true' && '' || format('Blinko {0}', needs.set-version.outputs.version) }}
+          releaseName: ${{ github.event.inputs.is-test == 'true' && '' || format('GeoBlinko {0}', needs.set-version.outputs.version) }}
           releaseBody: ${{ github.event.inputs.is-test == 'true' && '' || 'Under construction, full changelog will be updated after build completion...' }}
           releaseDraft: ${{ github.event.inputs.is-test == 'true' }}
           prerelease: ${{ github.event.inputs.is-test == 'true' }}
@@ -246,7 +246,7 @@ jobs:
         if: github.event.inputs.is-test == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: blinko-test-${{ matrix.platform }}-${{ github.event.inputs.tag }}
+          name: geoblinko-test-${{ matrix.platform }}-${{ github.event.inputs.tag }}
           path: |
             app/src-tauri/target/release/bundle/**/*
             !app/src-tauri/target/release/bundle/**/*.dSYM/**
@@ -406,9 +406,19 @@ jobs:
           echo "APK files in directory:"
           ls -la
           # Find and rename APK file (universal release takes priority)
-          mv app-universal-release.apk GeoBlinko_${VERSION}_release.apk 2>/dev/null || \
-          mv app-release.apk GeoBlinko_${VERSION}_release.apk 2>/dev/null || \
-          echo "Warning: Could not find APK file to rename"
+          # Try to find APK files with the correct package name prefix
+          for apk in app-*.apk; do
+            if [ -f "$apk" ]; then
+              mv "$apk" "GeoBlinko_${VERSION}_release.apk"
+              break
+            fi
+          done
+          # Fallback to old naming if above fails
+          if [ ! -f "GeoBlinko_${VERSION}_release.apk" ]; then
+            mv app-universal-release.apk GeoBlinko_${VERSION}_release.apk 2>/dev/null || \
+            mv app-release.apk GeoBlinko_${VERSION}_release.apk 2>/dev/null || \
+            echo "Warning: Could not find APK file to rename"
+          fi
           echo "Final APK file:"
           ls -la
           
@@ -459,7 +469,7 @@ jobs:
       - name: Download Android APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: blinko-android-${{ needs.set-version.outputs.version }}
+          name: geoblinko-android-${{ needs.set-version.outputs.version }}
           path: ./apk
       
       - name: List downloaded files
@@ -527,7 +537,7 @@ jobs:
             } catch (error) {
               console.error('Error calling OpenRouter API:', error.message);
               // 如果API调用失败，使用默认消息
-              const defaultMessage = `🚀 Blinko ${{ needs.set-version.outputs.version }} 已发布！\n\n📝 更新日志：\n${{ needs.generate-changelog.outputs.changelog }}\n\n📥 下载链接：\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.set-version.outputs.version }}`;
+              const defaultMessage = `🚀 GeoBlinko ${{ needs.set-version.outputs.version }} 已发布！\n\n📝 更新日志：\n${{ needs.generate-changelog.outputs.changelog }}\n\n📥 下载链接：\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.set-version.outputs.version }}`;
               core.setOutput('message', defaultMessage);
             }
       
@@ -571,7 +581,7 @@ jobs:
             } catch (error) {
               console.error('Error calling OpenRouter API:', error.message);
               // 如果API调用失败，使用默认消息
-              const defaultMessage = `🚀 Blinko ${{ needs.set-version.outputs.version }} has been released!\n\n📝 Changelog:\n${{ needs.generate-changelog.outputs.changelog }}\n\n📥 Download:\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.set-version.outputs.version }}`;
+              const defaultMessage = `🚀 GeoBlinko ${{ needs.set-version.outputs.version }} has been released!\n\n📝 Changelog:\n${{ needs.generate-changelog.outputs.changelog }}\n\n📥 Download:\nhttps://github.com/${{ github.repository }}/releases/tag/${{ needs.set-version.outputs.version }}`;
               core.setOutput('message', defaultMessage);
             }
 
