@@ -394,8 +394,8 @@ jobs:
           echo "APK files in directory:"
           ls -la
           # Find and rename APK file (universal release takes priority)
-          mv app-universal-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || \
-          mv app-release.apk Blinko_${VERSION}_release.apk 2>/dev/null || \
+          mv app-universal-release.apk GeoBlinko_${VERSION}_release.apk 2>/dev/null || \
+          mv app-release.apk GeoBlinko_${VERSION}_release.apk 2>/dev/null || \
           echo "Warning: Could not find APK file to rename"
           echo "Final APK file:"
           ls -la
@@ -406,7 +406,7 @@ jobs:
       - name: Upload Android APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: blinko-android-${{ needs.set-version.outputs.version }}
+          name: geoblinko-android-${{ needs.set-version.outputs.version }}
           path: ${{ env.FINAL_APK_DIR }}/*.apk
           if-no-files-found: warn
 
