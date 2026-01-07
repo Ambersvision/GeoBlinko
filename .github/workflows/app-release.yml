@@ -343,6 +343,18 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
+      - name: Clean Android gen directory
+        run: |
+          cd app
+          # Remove entire gen directory to force Tauri to regenerate with correct identifier
+          if [ -d "src-tauri/gen" ]; then
+            echo "Removing src-tauri/gen directory..."
+            rm -rf src-tauri/gen
+            echo "Removed successfully"
+          else
+            echo "No existing gen directory found"
+          fi
+
       - name: Create debug keystore for release build
         run: |
           mkdir -p app/src-tauri/gen/android
