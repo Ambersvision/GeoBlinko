@@ -56,8 +56,10 @@ export const LocationPicker = observer(({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const nearbyMarkersRef = useRef<any[]>([]); // 存储附近位置标记
   const geocoderRef = useRef<any>(null);
   const locationFetchedRef = useRef(false);
+  const skipAutoLocationRef = useRef(false); // 标志：跳过自动获取当前位置
 
   // 从配置文件读取高德 API Key（Docker 容器启动时注入）
   const blinkoConfig = (window as any).__BLINKO_CONFIG__ || {};
@@ -165,11 +167,14 @@ export const LocationPicker = observer(({
     if (!mapInstanceRef.current || !markerRef.current) return;
     const center: [number, number] = [loc.longitude, loc.latitude];
 
+    // 清除旧的附近位置标记
+    clearNearbyMarkers();
+
     // 更新标记位置到指定位置
     markerRef.current.setPosition(center);
 
-    // 移动地图到指定位置
-    mapInstanceRef.current.setZoomAndCenter(16, center);
+    // 移动地图到指定位置，使用更小的缩放级别以便看到附近位置
+    mapInstanceRef.current.setZoomAndCenter(15, center);
 
     // 立即获取新位置的地址（不等待 moveend 事件）
     const geocode = await reverseGeocodeByJs(loc.longitude, loc.latitude);
@@ -183,6 +188,23 @@ export const LocationPicker = observer(({
       distance: undefined,
       createdAt: new Date().toISOString()
     });
+
+    // 获取附近200m的位置列表
+    try {
+      const nearbyResults = await api.notes.getNearbyLocations.mutate({
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        radius: 200, // 200米范围内
+        pageSize: 10
+      });
+      setNearbyLocations(nearbyResults);
+      
+      // 在地图上显示附近位置标记
+      addNearbyMarkersToMap(nearbyResults);
+    } catch (error) {
+      console.error('Failed to get nearby locations:', error);
+      setNearbyLocations([]);
+    }
   }, [reverseGeocodeByJs]);
 
   const handleMapMoveEnd = useCallback(async () => {
@@ -210,7 +232,51 @@ export const LocationPicker = observer(({
       distance: undefined,
       createdAt: new Date().toISOString()
     });
+
+    // 获取附近200m的位置列表
+    try {
+      const nearbyResults = await api.notes.getNearbyLocations.mutate({
+        latitude: lat,
+        longitude: lng,
+        radius: 200, // 200米范围内
+        pageSize: 10
+      });
+      setNearbyLocations(nearbyResults);
+    } catch (error) {
+      console.error('Failed to get nearby locations:', error);
+      setNearbyLocations([]);
+    }
   }, [reverseGeocodeByJs]);
+
+  // 清除附近位置标记
+  const clearNearbyMarkers = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+    nearbyMarkersRef.current.forEach(marker => {
+      mapInstanceRef.current.remove(marker);
+    });
+    nearbyMarkersRef.current = [];
+  }, []);
+
+  // 在地图上添加附近位置标记
+  const addNearbyMarkersToMap = useCallback((locations: any[]) => {
+    if (!mapInstanceRef.current) return;
+    
+    locations.forEach(loc => {
+      const marker = new (window as any).AMap.Marker({
+        position: [loc.longitude, loc.latitude],
+        title: loc.name,
+        content: `
+          <div class="amap-marker" style="background: white; padding: 4px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="font-size: 12px; color: #333;">${loc.name}</div>
+            <div style="font-size: 10px; color: #666;">${loc.distance}</div>
+          </div>
+        `,
+        cursor: 'pointer'
+      });
+      marker.setMap(mapInstanceRef.current);
+      nearbyMarkersRef.current.push(marker);
+    });
+  }, []);
 
   // 防抖版本，避免频繁触发
   const debouncedHandleMapMoveEnd = useCallback(
@@ -267,6 +333,15 @@ export const LocationPicker = observer(({
 
         // 监听地图移动结束事件，更新标记位置和地址
         mapInstanceRef.current.on('moveend', debouncedHandleMapMoveEnd);
+
+        // 监听地图点击事件，点击地点后更新到中心点并获取附近位置
+        mapInstanceRef.current.on('click', async (e: any) => {
+          const { lnglat } = e;
+          await focusMapOnLocation({
+            latitude: lnglat.getLat(),
+            longitude: lnglat.getLng()
+          });
+        });
       } catch (error: any) {
         console.error('Init map failed:', error);
         setMapError(error?.message || '地图加载失败');
@@ -305,9 +380,9 @@ export const LocationPicker = observer(({
     }
   }, [locations, mapSelection]);
 
-  // 自动获取当前位置（每次打开都重新获取）
+  // 自动获取当前位置（每次打开都重新获取，但跳过跳转地图等操作）
   useEffect(() => {
-    if (isOpen && !mapLoading) {
+    if (isOpen && !mapLoading && !skipAutoLocationRef.current) {
       console.log('[LocationPicker] Map is ready, fetching current location...');
       // 等待地图初始化完成后获取当前位置
       getCurrentLocation();
@@ -458,6 +533,8 @@ export const LocationPicker = observer(({
       ToastPlugin.error('请输入地点后再跳转地图');
       return;
     }
+    // 设置标志，跳过自动获取当前位置
+    skipAutoLocationRef.current = true;
     try {
       setMapLoading(true);
       const results = searchResults.length > 0
@@ -468,6 +545,14 @@ export const LocationPicker = observer(({
         return;
       }
       const target = results[0];
+      
+      // 清除附近的标记，避免混淆
+      clearNearbyLocations();
+      
+      // 清空搜索结果
+      setSearchKeyword('');
+      setSearchResults([]);
+      
       await focusMapOnLocation({
         latitude: target.latitude,
         longitude: target.longitude
@@ -477,6 +562,10 @@ export const LocationPicker = observer(({
       ToastPlugin.error('地图跳转失败');
     } finally {
       setMapLoading(false);
+      // 延迟重置标志，确保 mapLoading 变为 false 时的 useEffect 已经过去
+      setTimeout(() => {
+        skipAutoLocationRef.current = false;
+      }, 500);
     }
   };
 
@@ -545,6 +634,7 @@ export const LocationPicker = observer(({
   // 清空附近位置列表
   const clearNearbyLocations = () => {
     setNearbyLocations([]);
+    clearNearbyMarkers();
   };
 
   // 删除位置
@@ -752,11 +842,8 @@ export const LocationPicker = observer(({
             {/* 互动地图 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-default-600">地图选点（拖拽/跳转）</h4>
+                <h4 className="text-sm font-medium text-default-600">地图选点（点击/跳转）</h4>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="flat" onPress={() => mapSelection && focusMapOnLocation(mapSelection)} isDisabled={!mapSelection || mapLoading}>
-                    对准当前选点
-                  </Button>
                   <Button size="sm" color="primary" onPress={addMapSelectionToList} isDisabled={!mapSelection}>
                     将地图位置加入已选
                   </Button>
@@ -774,11 +861,6 @@ export const LocationPicker = observer(({
                   </div>
                 )}
               </div>
-              {mapSelection && (
-                <p className="text-xs text-default-500">
-                  当前选点：{mapSelection.poiName || mapSelection.address || '未命名位置'}（{mapSelection.latitude.toFixed(6)}, {mapSelection.longitude.toFixed(6)}）
-                </p>
-              )}
             </div>
 
             {/* 附近位置列表 */}
