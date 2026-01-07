@@ -181,27 +181,41 @@ export const LocationPicker = observer(({
 
     // 立即获取新位置的地址（不等待 moveend 事件）
     const geocode = await reverseGeocodeByJs(loc.longitude, loc.latitude);
+
+    // 优先从 POI 数组中获取名称，其次使用 AOI，最后使用 building/neighborhood
+    let poiName = '地图选点';
+    if (geocode?.pois && geocode.pois.length > 0) {
+      // 优先使用距离最近的 POI（通常距离为 0 或很小）
+      poiName = geocode.pois[0].name;
+    } else if (geocode?.aois && geocode.aois.length > 0) {
+      // 如果没有 POI，使用 AOI（区域）名称
+      poiName = geocode.aois[0].name;
+    } else {
+      // 最后尝试使用 building 或 neighborhood
+      poiName = geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点';
+    }
+
     setMapSelection({
       id: `map_${Date.now()}`,
       latitude: loc.latitude,
       longitude: loc.longitude,
       address: geocode?.formattedAddress || '',
       formattedAddress: geocode?.formattedAddress || '',
-      poiName: geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点',
+      poiName: poiName,
       distance: undefined,
       createdAt: new Date().toISOString()
     });
 
-    // 获取附近200m的位置列表
+    // 获取附近1000m的位置列表（扩大搜索范围）
     try {
       const nearbyResults = await api.notes.getNearbyLocations.mutate({
         latitude: loc.latitude,
         longitude: loc.longitude,
-        radius: 200, // 200米范围内
+        radius: 1000, // 扩大到1000米范围内
         pageSize: 10
       });
       setNearbyLocations(nearbyResults);
-      
+
       // 在地图上显示附近位置标记
       addNearbyMarkersToMap(nearbyResults);
     } catch (error) {
