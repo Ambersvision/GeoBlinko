@@ -148,6 +148,19 @@ export const LocationPicker = observer(({
     return (window as any).AMap;
   }, []);
 
+  const reverseGeocodeByJs = useCallback(async (lng: number, lat: number) => {
+    if (!geocoderRef.current) return null;
+    return await new Promise<any>((resolve) => {
+      geocoderRef.current.getAddress([lng, lat], (status: string, result: any) => {
+        if (status === 'complete' && result?.regeocode) {
+          resolve(result.regeocode);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  }, []);
+
   const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }) => {
     if (!mapInstanceRef.current || !markerRef.current) return;
     const center: [number, number] = [loc.longitude, loc.latitude];
@@ -171,19 +184,6 @@ export const LocationPicker = observer(({
       createdAt: new Date().toISOString()
     });
   }, [reverseGeocodeByJs]);
-
-  const reverseGeocodeByJs = useCallback(async (lng: number, lat: number) => {
-    if (!geocoderRef.current) return null;
-    return await new Promise<any>((resolve) => {
-      geocoderRef.current.getAddress([lng, lat], (status: string, result: any) => {
-        if (status === 'complete' && result?.regeocode) {
-          resolve(result.regeocode);
-        } else {
-          resolve(null);
-        }
-      });
-    });
-  }, []);
 
   const handleMapMoveEnd = useCallback(async () => {
     if (!mapInstanceRef.current) return;
