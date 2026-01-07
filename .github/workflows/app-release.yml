@@ -289,10 +289,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install NDK
-        run: |
-          echo "Installing Android NDK..."
-          sdkmanager "ndk;27.0.11902837" || sdkmanager "ndk;27.0.12079918"
-          echo "NDK installation completed"
+        run: sdkmanager "ndk;27.0.11902837"
 
       - name: Setup Node Environment
         uses: actions/setup-node@v4
@@ -346,56 +343,6 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
-      - name: Set NDK path
-        run: |
-          # Find and set NDK_HOME
-          NDK_PATH=$(ls -d $ANDROID_HOME/ndk/* 2>/dev/null | head -1)
-          if [ -z "$NDK_PATH" ]; then
-            echo "ERROR: NDK not found in $ANDROID_HOME"
-            ls -la $ANDROID_HOME/
-            exit 1
-          fi
-          echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
-          echo "Found NDK at: $NDK_PATH"
-
-      - name: Clean and reinitialize Android project
-        run: |
-          cd app
-          # Remove entire src-tauri/gen directory to force complete reinitialization
-          if [ -d "src-tauri/gen" ]; then
-            echo "Removing existing src-tauri/gen directory..."
-            rm -rf src-tauri/gen
-          fi
-          # Reinitialize Android project with NDK_HOME set
-          echo "Reinitializing Android project with NDK_HOME=$NDK_HOME..."
-          set -x  # Enable command tracing
-          NDK_HOME=$NDK_HOME bun run tauri android init --ci
-          INIT_EXIT_CODE=$?
-          set +x  # Disable command tracing
-          
-          if [ $INIT_EXIT_CODE -ne 0 ]; then
-            echo "ERROR: tauri android init failed with exit code $INIT_EXIT_CODE"
-            echo "Checking src-tauri/gen directory:"
-            ls -la src-tauri/gen/ 2>&1 || echo "src-tauri/gen does not exist"
-            if [ -d "src-tauri/gen/android" ]; then
-              echo "Android directory contents:"
-              find src-tauri/gen/android -type f -o -type d 2>&1 | head -30
-            fi
-            exit 1
-          fi
-          
-          echo "Android project reinitialized successfully"
-          # Verify the expected directory exists
-          if [ ! -d "src-tauri/gen/android/app/src/main/java/com/geoblinko/app" ]; then
-            echo "ERROR: Expected Android directory structure not found!"
-            echo "Listing src-tauri/gen/android contents:"
-            find src-tauri/gen/android -type f -o -type d 2>&1 | head -30 || true
-            echo "Current identifier in tauri.conf.json:"
-            cat src-tauri/tauri.conf.json | grep identifier
-            exit 1
-          fi
-          echo "Android directory structure verified successfully"
-
       - name: Create debug keystore for release build
         run: |
           mkdir -p app/src-tauri/gen/android
@@ -416,9 +363,6 @@ jobs:
       - name: Build Android App (Release with debug keystore)
         run: |
           cd app
-          # Set NDK path dynamically
-          export NDK_HOME=$(ls -d $ANDROID_HOME/ndk/* 2>/dev/null | head -1)
-          echo "Using NDK from: $NDK_HOME"
           bun run tauri android build
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
