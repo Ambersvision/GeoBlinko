@@ -346,6 +346,18 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
+      - name: Set NDK path
+        run: |
+          # Find and set NDK_HOME
+          NDK_PATH=$(ls -d $ANDROID_HOME/ndk/* 2>/dev/null | head -1)
+          if [ -z "$NDK_PATH" ]; then
+            echo "ERROR: NDK not found in $ANDROID_HOME"
+            ls -la $ANDROID_HOME/
+            exit 1
+          fi
+          echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
+          echo "Found NDK at: $NDK_PATH"
+
       - name: Clean and reinitialize Android project
         run: |
           cd app
@@ -354,10 +366,10 @@ jobs:
             echo "Removing existing src-tauri/gen directory..."
             rm -rf src-tauri/gen
           fi
-          # Reinitialize Android project
-          echo "Reinitializing Android project..."
+          # Reinitialize Android project with NDK_HOME set
+          echo "Reinitializing Android project with NDK_HOME=$NDK_HOME..."
           set -x  # Enable command tracing
-          bun run tauri android init --ci
+          NDK_HOME=$NDK_HOME bun run tauri android init --ci
           INIT_EXIT_CODE=$?
           set +x  # Disable command tracing
           
@@ -377,7 +389,7 @@ jobs:
           if [ ! -d "src-tauri/gen/android/app/src/main/java/com/geoblinko/app" ]; then
             echo "ERROR: Expected Android directory structure not found!"
             echo "Listing src-tauri/gen/android contents:"
-            find src-tauri/gen/android -type f -o -type d | head -30 || true
+            find src-tauri/gen/android -type f -o -type d 2>&1 | head -30 || true
             echo "Current identifier in tauri.conf.json:"
             cat src-tauri/tauri.conf.json | grep identifier
             exit 1
