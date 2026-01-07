@@ -61,8 +61,28 @@ export class DBJob extends BaseScheduleJob {
           referencedBy: true
         }
       });
+
+      // Export tags with icon information
+      const tags = await prisma.tag.findMany({
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+          parent: true,
+          accountId: true,
+          createdAt: true,
+          updatedAt: true,
+          sortOrder: true
+        }
+      });
+
+      // Export tag-note relationships
+      const tagsToNote = await prisma.tagsToNote.findMany();
+
       const exportData = {
         notes,
+        tags,
+        tagsToNote,
         exportTime: new Date(),
         version: Package.version
       };
@@ -256,6 +276,36 @@ export class DBJob extends BaseScheduleJob {
         fs.readFileSync(`${DBBAKUP_PATH}/bak.json`, 'utf-8')
       );
 
+      // Restore tags first
+      const tagMap = new Map(); // Old ID -> New ID
+      if (backupData.tags && backupData.tags.length > 0) {
+        for (const tag of backupData.tags) {
+          try {
+            const existingTag = await prisma.tag.findFirst({
+              where: { name: tag.name, accountId: tag.accountId }
+            });
+
+            let newTag;
+            if (existingTag) {
+              newTag = existingTag;
+            } else {
+              newTag = await prisma.tag.create({
+                data: {
+                  name: tag.name,
+                  icon: tag.icon || '',
+                  parent: tag.parent,
+                  accountId: tag.accountId,
+                  sortOrder: tag.sortOrder
+                }
+              });
+            }
+            tagMap.set(tag.id, newTag.id);
+          } catch (error) {
+            console.error(`Failed to restore tag: ${tag.name}`, error);
+          }
+        }
+      }
+
       const attachmentsCount = backupData.notes.reduce((acc: number, note: any) =>
         acc + (note.attachments?.length || 0), 0);
       const total = backupData.notes.length + attachmentsCount;
@@ -347,6 +397,33 @@ export class DBJob extends BaseScheduleJob {
                   metadata: note.metadata,
                 }
               });
+
+              // Restore tag-note relationships
+              if (note.tags && note.tags.length > 0 && backupData.tagsToNote) {
+                const tagNoteRelations = backupData.tagsToNote.filter(
+                  (rel: any) => rel.noteId === note.id
+                );
+
+                for (const rel of tagNoteRelations) {
+                  const newTagId = tagMap.get(rel.tagId);
+                  if (newTagId) {
+                    await tx.tagsToNote.upsert({
+                      where: {
+                        noteId_tagId: {
+                          noteId: createdNote.id,
+                          tagId: newTagId
+                        }
+                      },
+                      create: {
+                        noteId: createdNote.id,
+                        tagId: newTagId
+                      },
+                      update: {}
+                    });
+                  }
+                }
+              }
+
               if (note.attachments?.length) {
                 const attachmentData = note.attachments.map((attachment: any) => ({
                   ...attachment,
