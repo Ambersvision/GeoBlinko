@@ -170,11 +170,14 @@ export const LocationPicker = observer(({
     // 清除旧的附近位置标记
     clearNearbyMarkers();
 
+    // 获取当前缩放级别，保持不变
+    const currentZoom = mapInstanceRef.current.getZoom();
+
     // 更新标记位置到指定位置
     markerRef.current.setPosition(center);
 
-    // 移动地图到指定位置，使用更小的缩放级别以便看到附近位置
-    mapInstanceRef.current.setZoomAndCenter(15, center);
+    // 移动地图到指定位置，保持当前缩放级别
+    mapInstanceRef.current.setCenter(center);
 
     // 立即获取新位置的地址（不等待 moveend 事件）
     const geocode = await reverseGeocodeByJs(loc.longitude, loc.latitude);
@@ -201,47 +204,6 @@ export const LocationPicker = observer(({
       
       // 在地图上显示附近位置标记
       addNearbyMarkersToMap(nearbyResults);
-    } catch (error) {
-      console.error('Failed to get nearby locations:', error);
-      setNearbyLocations([]);
-    }
-  }, [reverseGeocodeByJs]);
-
-  const handleMapMoveEnd = useCallback(async () => {
-    if (!mapInstanceRef.current) return;
-
-    // 获取地图当前中心点
-    const center = mapInstanceRef.current.getCenter();
-    const lng = center.getLng();
-    const lat = center.getLat();
-
-    // 更新标记位置到地图中心
-    if (markerRef.current) {
-      markerRef.current.setPosition([lng, lat]);
-    }
-
-    // 反向地理编码获取地址
-    const geocode = await reverseGeocodeByJs(lng, lat);
-    setMapSelection({
-      id: `map_${Date.now()}`,
-      latitude: lat,
-      longitude: lng,
-      address: geocode?.formattedAddress || '',
-      formattedAddress: geocode?.formattedAddress || '',
-      poiName: geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点',
-      distance: undefined,
-      createdAt: new Date().toISOString()
-    });
-
-    // 获取附近200m的位置列表
-    try {
-      const nearbyResults = await api.notes.getNearbyLocations.mutate({
-        latitude: lat,
-        longitude: lng,
-        radius: 200, // 200米范围内
-        pageSize: 10
-      });
-      setNearbyLocations(nearbyResults);
     } catch (error) {
       console.error('Failed to get nearby locations:', error);
       setNearbyLocations([]);
@@ -277,12 +239,6 @@ export const LocationPicker = observer(({
       nearbyMarkersRef.current.push(marker);
     });
   }, []);
-
-  // 防抖版本，避免频繁触发
-  const debouncedHandleMapMoveEnd = useCallback(
-    debounce(handleMapMoveEnd, 500),
-    [handleMapMoveEnd]
-  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -324,18 +280,15 @@ export const LocationPicker = observer(({
         // 等待Geocoder初始化
         await new Promise<void>((resolve) => setTimeout(resolve, 100));
 
-        markerRef.current = new AMap.Marker({
-          position: [centerLng, centerLat],
-          draggable: false,  // 固定在中心，不允拖拽
-          cursor: 'default'
-        });
-        mapInstanceRef.current.add(markerRef.current);
+    markerRef.current = new AMap.Marker({
+      position: [centerLng, centerLat],
+      draggable: false,  // 固定在中心，不允拖拽
+      cursor: 'default'
+    });
+    mapInstanceRef.current.add(markerRef.current);
 
-        // 监听地图移动结束事件，更新标记位置和地址
-        mapInstanceRef.current.on('moveend', debouncedHandleMapMoveEnd);
-
-        // 监听地图点击事件，点击地点后更新到中心点并获取附近位置
-        mapInstanceRef.current.on('click', async (e: any) => {
+    // 监听地图点击事件，点击地点后更新到中心点并获取附近位置
+    mapInstanceRef.current.on('click', async (e: any) => {
           const { lnglat } = e;
           await focusMapOnLocation({
             latitude: lnglat.getLat(),
@@ -354,14 +307,13 @@ export const LocationPicker = observer(({
     return () => {
       disposed = true;
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.off('moveend', debouncedHandleMapMoveEnd);
         mapInstanceRef.current.destroy?.();
       }
       mapInstanceRef.current = null;
       markerRef.current = null;
       geocoderRef.current = null;
     };
-  }, [isOpen, loadAmap, debouncedHandleMapMoveEnd]);
+  }, [isOpen, loadAmap]);
 
   // 移除这个 useEffect，避免与 focusMapOnLocation 重复
   // focusMapOnLocation 已经会更新标记位置和地图中心
