@@ -1,7 +1,7 @@
 import { useDropzone } from "react-dropzone";
 import { Button } from "@heroui/react";
 import { Icon } from '@/components/Common/Iconify/icons';
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import { RootStore } from "@/store";
@@ -19,7 +19,21 @@ type IProps = {
 export const UploadFileWrapper = observer(({ onUpload, children, acceptImage = false }: IProps) => {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const cancelSourceRef = useRef(axios.CancelToken.source())
   const blinko = RootStore.Get(BlinkoStore)
+
+  const cancelUpload = () => {
+    if (cancelSourceRef.current) {
+      cancelSourceRef.current.cancel('Upload cancelled by user')
+      setIsLoading(false)
+      setUploadProgress(0)
+      // Create new cancel token for next upload
+      cancelSourceRef.current = axios.CancelToken.source()
+      RootStore.Get(ToastPlugin).info(t('upload-cancelled'))
+    }
+  }
+
   const {
     getRootProps,
     getInputProps,
@@ -32,6 +46,7 @@ export const UploadFileWrapper = observer(({ onUpload, children, acceptImage = f
     } : undefined,
     onDrop: async acceptedFiles => {
       setIsLoading(true)
+      setUploadProgress(0)
       try {
         const file = acceptedFiles[0]!
         const formData = new FormData();
@@ -39,17 +54,24 @@ export const UploadFileWrapper = observer(({ onUpload, children, acceptImage = f
 
         const { onUploadProgress } = RootStore.Get(ToastPlugin)
           .setSizeThreshold(40)
-          .uploadProgress(file);
+          .uploadProgress(file, (progress) => {
+            setUploadProgress(progress)
+          });
 
         const response = await axiosInstance.post(getBlinkoEndpoint('/api/file/upload'), formData, {
-          onUploadProgress
+          onUploadProgress,
+          cancelToken: cancelSourceRef.current.token
         });
 
         onUpload?.(response.data)
-      } catch (error) {
-        console.error('Upload failed:', error);
+      } catch (error: any) {
+        if (!axios.isCancel(error)) {
+          console.error('Upload failed:', error);
+          RootStore.Get(ToastPlugin).error(t('upload-failed'))
+        }
       } finally {
         setIsLoading(false)
+        setUploadProgress(0)
       }
     }
   });
@@ -58,14 +80,26 @@ export const UploadFileWrapper = observer(({ onUpload, children, acceptImage = f
     <input {...getInputProps()} />
     {children ?
       <div onClick={open}>{children}</div>
-      : <Button
-        isDisabled={blinko.config.value?.objectStorage === 's3'}
-        onPress={open}
-        isLoading={isLoading}
-        color='primary'
-        startContent={<Icon icon="tabler:upload" width="24" height="24" />}
-      >
-        {t('upload')}
-      </Button>}
+      : <div className="flex gap-2">
+        <Button
+          isDisabled={blinko.config.value?.objectStorage === 's3' || !isLoading}
+          onPress={open}
+          color='primary'
+          startContent={<Icon icon="tabler:upload" width="20" height="20" />}
+          size="sm"
+        >
+          {t('upload')}
+        </Button>
+        {isLoading && (
+          <Button
+            onPress={cancelUpload}
+            color="danger"
+            variant="light"
+            size="sm"
+          >
+            <Icon icon="tabler:x" width="20" height="20" />
+          </Button>
+        )}
+      </div>}
   </div>
 })
