@@ -341,7 +341,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0.0-alpha"
+        run: cargo install tauri-cli@2.5.0
 
       - name: Clean Android gen directory
         run: |
@@ -355,9 +355,15 @@ jobs:
             echo "No existing gen directory found"
           fi
 
+      - name: Initialize Android project
+        run: |
+          cd app
+          # Initialize Android project with correct package name
+          bun run tauri android init --ci
+          echo "Android project initialized"
+
       - name: Create debug keystore for release build
         run: |
-          mkdir -p app/src-tauri/gen/android
           mkdir -p $HOME/.android
           # Create debug keystore if it doesn't exist
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
