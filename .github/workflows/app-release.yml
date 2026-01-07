@@ -346,15 +346,23 @@ jobs:
       - name: Clean and reinitialize Android project
         run: |
           cd app
-          # Remove gen/android directory to force reinitialization
-          if [ -d "src-tauri/gen/android" ]; then
-            echo "Removing existing gen/android directory..."
-            rm -rf src-tauri/gen/android
+          # Remove entire src-tauri/gen directory to force complete reinitialization
+          if [ -d "src-tauri/gen" ]; then
+            echo "Removing existing src-tauri/gen directory..."
+            rm -rf src-tauri/gen
           fi
           # Reinitialize Android project
           echo "Reinitializing Android project..."
           bun run tauri android init --ci
           echo "Android project reinitialized"
+          # Verify the expected directory exists
+          if [ ! -d "src-tauri/gen/android/app/src/main/java/com/geoblinko/app" ]; then
+            echo "ERROR: Expected Android directory structure not found!"
+            echo "Listing gen/android contents:"
+            find src-tauri/gen/android -type f -o -type d | head -20 || true
+            exit 1
+          fi
+          echo "Android directory structure verified successfully"
 
       - name: Create debug keystore for release build
         run: |
