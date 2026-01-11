@@ -163,7 +163,37 @@ export const LocationPicker = observer(({
     });
   }, []);
 
-  const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }, providedPoiName?: string) => {
+  // 清除附近位置标记
+  const clearNearbyMarkers = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+    nearbyMarkersRef.current.forEach(marker => {
+      mapInstanceRef.current.remove(marker);
+    });
+    nearbyMarkersRef.current = [];
+  }, []);
+
+  // 在地图上添加附近位置标记
+  const addNearbyMarkersToMap = useCallback((locations: any[]) => {
+    if (!mapInstanceRef.current) return;
+
+    locations.forEach(loc => {
+      const marker = new (window as any).AMap.Marker({
+        position: [loc.longitude, loc.latitude],
+        title: loc.name,
+        content: `
+          <div class="amap-marker" style="background: white; padding: 4px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="font-size: 12px; color: #333;">${loc.name}</div>
+            <div style="font-size: 10px; color: #666;">${loc.distance}</div>
+          </div>
+        `,
+        cursor: 'pointer'
+      });
+      marker.setMap(mapInstanceRef.current);
+      nearbyMarkersRef.current.push(marker);
+    });
+  }, []);
+
+  const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }, providedPoiName?: string, providedAddress?: string, updateNearbyLocations: boolean = true) => {
     if (!mapInstanceRef.current || !markerRef.current) return;
     const center: [number, number] = [loc.longitude, loc.latitude];
 
@@ -184,6 +214,8 @@ export const LocationPicker = observer(({
 
     // 如果提供了名称（从列表选择时），直接使用；否则使用地理编码结果
     let poiName = providedPoiName;
+    let address = providedAddress;
+
     if (!poiName) {
       // 优先从 POI 数组中获取名称，其次使用 AOI，最后使用 building/neighborhood
       poiName = '地图选点';
@@ -199,64 +231,40 @@ export const LocationPicker = observer(({
       }
     }
 
+    if (!address) {
+      address = geocode?.formattedAddress || '';
+    }
+
     setMapSelection({
       id: `map_${Date.now()}`,
       latitude: loc.latitude,
       longitude: loc.longitude,
-      address: geocode?.formattedAddress || '',
-      formattedAddress: geocode?.formattedAddress || '',
+      address: address,
+      formattedAddress: address,
       poiName: poiName,
       distance: undefined,
       createdAt: new Date().toISOString()
     });
 
-    // 获取附近1000m的位置列表（扩大搜索范围）
-    try {
-      const nearbyResults = await api.notes.getNearbyLocations.mutate({
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        radius: 1000, // 扩大到1000米范围内
-        pageSize: 10
-      });
-      setNearbyLocations(nearbyResults);
+    // 只在需要时获取附近1000m的位置列表
+    if (updateNearbyLocations) {
+      try {
+        const nearbyResults = await api.notes.getNearbyLocations.mutate({
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          radius: 1000, // 扩大到1000米范围内
+          pageSize: 10
+        });
+        setNearbyLocations(nearbyResults);
 
-      // 在地图上显示附近位置标记
-      addNearbyMarkersToMap(nearbyResults);
-    } catch (error) {
-      console.error('Failed to get nearby locations:', error);
-      setNearbyLocations([]);
+        // 在地图上显示附近位置标记
+        addNearbyMarkersToMap(nearbyResults);
+      } catch (error) {
+        console.error('Failed to get nearby locations:', error);
+        setNearbyLocations([]);
+      }
     }
   }, [reverseGeocodeByJs]);
-
-  // 清除附近位置标记
-  const clearNearbyMarkers = useCallback(() => {
-    if (!mapInstanceRef.current) return;
-    nearbyMarkersRef.current.forEach(marker => {
-      mapInstanceRef.current.remove(marker);
-    });
-    nearbyMarkersRef.current = [];
-  }, []);
-
-  // 在地图上添加附近位置标记
-  const addNearbyMarkersToMap = useCallback((locations: any[]) => {
-    if (!mapInstanceRef.current) return;
-    
-    locations.forEach(loc => {
-      const marker = new (window as any).AMap.Marker({
-        position: [loc.longitude, loc.latitude],
-        title: loc.name,
-        content: `
-          <div class="amap-marker" style="background: white; padding: 4px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="font-size: 12px; color: #333;">${loc.name}</div>
-            <div style="font-size: 10px; color: #666;">${loc.distance}</div>
-          </div>
-        `,
-        cursor: 'pointer'
-      });
-      marker.setMap(mapInstanceRef.current);
-      nearbyMarkersRef.current.push(marker);
-    });
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -597,7 +605,7 @@ export const LocationPicker = observer(({
     await focusMapOnLocation({
       latitude: location.latitude,
       longitude: location.longitude
-    }, location.name);
+    }, location.name, location.formattedAddress, false);
     ToastPlugin.success('位置已添加');
   };
 
