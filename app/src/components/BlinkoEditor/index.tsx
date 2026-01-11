@@ -8,6 +8,9 @@ import { NoteType } from "@shared/lib/types"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { LocationPicker, LocationData } from "@/components/LocationPicker"
 import { eventBus } from "@/lib/event"
+import { geolocationService } from "@/services/GeolocationService"
+import { ToastPlugin } from "@/store/module/Toast/Toast"
+import { wgs84ToGcj02 } from "@/lib/helper"
 
 type IProps = {
   mode: 'create' | 'edit',
@@ -93,6 +96,40 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     }
   }))
 
+  // 自动获取位置（仅创建模式且用户未手动添加位置时）
+  useEffect(() => {
+    if (mode === 'create' && editorLocations.length === 0) {
+      const fetchAutoLocation = async () => {
+        try {
+          const position = await geolocationService.getCurrentPosition();
+          // 转换为 GCJ02 坐标（高德坐标系）
+          const gcj = wgs84ToGcj02(position.latitude, position.longitude);
+
+          const autoLocation: LocationData = {
+            id: `auto_${Date.now()}`,
+            latitude: gcj.latitude,
+            longitude: gcj.longitude,
+            address: '自动获取',
+            formattedAddress: '自动获取',
+            poiName: '自动获取',
+            distance: '0米',
+            createdAt: new Date().toISOString()
+          };
+
+          setEditorLocations([autoLocation]);
+          console.log('[BlinkoEditor] Auto location added:', autoLocation);
+        } catch (error) {
+          // 获取位置失败不提示，用户可以手动添加
+          console.log('[BlinkoEditor] Auto location fetch failed:', error);
+        }
+      };
+
+      // 延迟获取位置，避免阻塞界面
+      const timer = setTimeout(fetchAutoLocation, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [mode, editorLocations.length]);
+
   useEffect(() => {
     blinko.isCreateMode = mode == 'create'
     if (mode == 'create') {
@@ -175,7 +212,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
         // 合并位置数据到 metadata
         const finalMetadata = {
           ...metadata,
-          locations: editorLocations
+          locations: editorLocations.length > 0 ? editorLocations : undefined
         }
 
         if (isCreateMode) {

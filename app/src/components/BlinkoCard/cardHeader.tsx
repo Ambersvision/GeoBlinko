@@ -116,7 +116,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
         )}
 
         <Tooltip content={t('edit-time')} delay={1000}>
-          <div 
+          <div
             className={`${isExpanded ? 'text-sm' : 'text-xs'} text-desc cursor-pointer transition-colors`}
             onClick={(e) => {
               e.stopPropagation();
@@ -126,10 +126,19 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
           >
             {blinko.config.value?.timeFormat == 'relative'
               ? dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).fromNow()
-              : dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')
+              : dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')}
             }
           </div>
         </Tooltip>
+
+        {/* 显示位置坐标（在日期时间之后） */}
+        {blinkoItem.metadata?.locations && blinkoItem.metadata.locations.length > 0 && (
+          <Tooltip content={blinkoItem.metadata.locations[0].poiName || '位置'} delay={1000}>
+            <div className={`${isExpanded ? 'text-sm' : 'text-xs'} text-primary-500`}>
+              📍 {blinkoItem.metadata.locations[0].latitude.toFixed(6)}, {blinkoItem.metadata.locations[0].longitude.toFixed(6)}
+            </div>
+          </Tooltip>
+        )}
 
         <Copy
           size={16}
