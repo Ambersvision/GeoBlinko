@@ -163,7 +163,7 @@ export const LocationPicker = observer(({
     });
   }, []);
 
-  const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }) => {
+  const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }, providedPoiName?: string) => {
     if (!mapInstanceRef.current || !markerRef.current) return;
     const center: [number, number] = [loc.longitude, loc.latitude];
 
@@ -182,17 +182,21 @@ export const LocationPicker = observer(({
     // 立即获取新位置的地址（不等待 moveend 事件）
     const geocode = await reverseGeocodeByJs(loc.longitude, loc.latitude);
 
-    // 优先从 POI 数组中获取名称，其次使用 AOI，最后使用 building/neighborhood
-    let poiName = '地图选点';
-    if (geocode?.pois && geocode.pois.length > 0) {
-      // 优先使用距离最近的 POI（通常距离为 0 或很小）
-      poiName = geocode.pois[0].name;
-    } else if (geocode?.aois && geocode.aois.length > 0) {
-      // 如果没有 POI，使用 AOI（区域）名称
-      poiName = geocode.aois[0].name;
-    } else {
-      // 最后尝试使用 building 或 neighborhood
-      poiName = geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点';
+    // 如果提供了名称（从列表选择时），直接使用；否则使用地理编码结果
+    let poiName = providedPoiName;
+    if (!poiName) {
+      // 优先从 POI 数组中获取名称，其次使用 AOI，最后使用 building/neighborhood
+      poiName = '地图选点';
+      if (geocode?.pois && geocode.pois.length > 0) {
+        // 优先使用距离最近的 POI（通常距离为 0 或很小）
+        poiName = geocode.pois[0].name;
+      } else if (geocode?.aois && geocode.aois.length > 0) {
+        // 如果没有 POI，使用 AOI（区域）名称
+        poiName = geocode.aois[0].name;
+      } else {
+        // 最后尝试使用 building 或 neighborhood
+        poiName = geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点';
+      }
     }
 
     setMapSelection({
@@ -463,7 +467,7 @@ export const LocationPicker = observer(({
       await focusMapOnLocation({
         latitude: currentLoc.latitude,
         longitude: currentLoc.longitude
-      });
+      }, currentLoc.name);
       ToastPlugin.success('找到附近位置，请选择');
 
     } catch (error: any) {
@@ -571,7 +575,7 @@ export const LocationPicker = observer(({
     await focusMapOnLocation({
       latitude: result.latitude,
       longitude: result.longitude
-    });
+    }, result.name);
   };
 
   // 添加附近位置
@@ -593,7 +597,7 @@ export const LocationPicker = observer(({
     await focusMapOnLocation({
       latitude: location.latitude,
       longitude: location.longitude
-    });
+    }, location.name);
     ToastPlugin.success('位置已添加');
   };
 
