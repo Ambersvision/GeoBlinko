@@ -54,7 +54,7 @@ services:
       NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
       NEXTAUTH_SECRET: "postgres"
       # API Key 注入配置（运行时替换占位符）
-      INJECT_VARS: "VITE_AMAP_WEB_API_KEY=your-amap-web-api-key NEXT_PUBLIC_AMAP_WEB_API_KEY=your-amap-web-api-key AMAP_WEB_API_KEY=your-amap-web-api-key"
+      INJECT_VARS: "VITE_AMAP_WEB_API_KEY NEXT_PUBLIC_AMAP_WEB_API_KEY AMAP_WEB_API_KEY"
       # Frontend (Vite) - exposed to client bundle
       VITE_AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
       # Legacy / other parts (kept for compatibility)
