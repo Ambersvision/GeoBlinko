@@ -66,7 +66,6 @@ export const LocationPicker = observer(({
 
   // 当 initialLocations 变化时更新 locations 状态
   useEffect(() => {
-    console.log('[LocationPicker] initialLocations changed:', initialLocations);
     setLocations(initialLocations);
     // 如果有位置数据，更新地图选择到第一个位置
     if (initialLocations.length > 0) {
@@ -341,17 +340,6 @@ export const LocationPicker = observer(({
     };
   }, [isOpen, loadAmap]);
 
-  // 移除这个 useEffect，避免与 focusMapOnLocation 重复
-  // focusMapOnLocation 已经会更新标记位置和地图中心
-  /* useEffect(() => {
-    if (!mapInstanceRef.current || !mapSelection) {
-      console.log('[LocationPicker] Skipping map update - map not ready or no selection');
-      return;
-    }
-    console.log('[LocationPicker] Updating map to:', mapSelection);
-    focusMapOnLocation(mapSelection);
-  }, [mapSelection, focusMapOnLocation]); */
-
   useEffect(() => {
     if (!mapSelection && locations.length > 0) {
       setMapSelection(locations[0]);
@@ -361,7 +349,6 @@ export const LocationPicker = observer(({
   // 自动获取当前位置（每次打开都重新获取，但跳过跳转地图等操作）
   useEffect(() => {
     if (isOpen && !mapLoading && !skipAutoLocationRef.current) {
-      console.log('[LocationPicker] Map is ready, fetching current location...');
       // 等待地图初始化完成后获取当前位置
       getCurrentLocation();
     }
@@ -423,10 +410,9 @@ export const LocationPicker = observer(({
       // 转 GCJ02 以便在高德/国内地图上避免偏移
       const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
-      // 显示位置精度信息
+      // 显示位置精度信息（仅用于调试）
       if (position.accuracy) {
         const accuracyText = position.accuracy < 20 ? '超高精度' : position.accuracy < 50 ? '高精度' : position.accuracy < 100 ? '中等精度' : '低精度';
-        console.log(`位置获取成功: 经度 ${position.longitude}, 纬度 ${position.latitude}, 精度 ${accuracyText} (${Math.round(position.accuracy)}米)`);
       }
 
       // 先获取当前位置的地址信息（服务端已做 WGS->GCJ，传原始 WGS 即可）
@@ -471,7 +457,6 @@ export const LocationPicker = observer(({
       // 设置附近位置列表，当前位置排在第一位
       setNearbyLocations([currentLoc, ...nearbyResults]);
       // focusMapOnLocation 会设置 mapSelection，不需要手动设置
-      console.log('[LocationPicker] Setting map to current location:', currentLoc);
       await focusMapOnLocation({
         latitude: currentLoc.latitude,
         longitude: currentLoc.longitude

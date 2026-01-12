@@ -11,6 +11,7 @@ import { eventBus } from "@/lib/event"
 import { geolocationService } from "@/services/GeolocationService"
 import { ToastPlugin } from "@/store/module/Toast/Toast"
 import { wgs84ToGcj02 } from "@/lib/helper"
+import { api } from "@/lib/trpc"
 
 type IProps = {
   mode: 'create' | 'edit',
@@ -96,40 +97,6 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     }
   }))
 
-  // 自动获取位置（仅创建模式且用户未手动添加位置时）
-  useEffect(() => {
-    if (mode === 'create' && editorLocations.length === 0) {
-      const fetchAutoLocation = async () => {
-        try {
-          const position = await geolocationService.getCurrentPosition();
-          // 转换为 GCJ02 坐标（高德坐标系）
-          const gcj = wgs84ToGcj02(position.latitude, position.longitude);
-
-          const autoLocation: LocationData = {
-            id: `auto_${Date.now()}`,
-            latitude: gcj.latitude,
-            longitude: gcj.longitude,
-            address: '自动获取',
-            formattedAddress: '自动获取',
-            poiName: '自动获取',
-            distance: '0米',
-            createdAt: new Date().toISOString()
-          };
-
-          setEditorLocations([autoLocation]);
-          console.log('[BlinkoEditor] Auto location added:', autoLocation);
-        } catch (error) {
-          // 获取位置失败不提示，用户可以手动添加
-          console.log('[BlinkoEditor] Auto location fetch failed:', error);
-        }
-      };
-
-      // 延迟获取位置，避免阻塞界面
-      const timer = setTimeout(fetchAutoLocation, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [mode, editorLocations.length]);
-
   useEffect(() => {
     blinko.isCreateMode = mode == 'create'
     if (mode == 'create') {
@@ -209,10 +176,52 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           <div className='text-xs text-desc'>{dayjs(blinko.curSelectedNote!.createdAt).format("YYYY-MM-DD hh:mm:ss")}</div>
       }
       onSend={async ({ files, references, noteType, metadata }) => {
+        // 准备位置数据
+        let locations = [...editorLocations];
+
+        // 创建模式：无条件自动获取当前位置
+        // 编辑模式：用户未手动添加位置时自动获取（editorLocations.length === 0）
+        const shouldAutoCaptureLocation = isCreateMode || (mode === 'edit' && locations.length === 0);
+
+        if (shouldAutoCaptureLocation) {
+          try {
+            const position = await geolocationService.getCurrentPosition();
+            // 转换为 GCJ02 坐标（高德坐标系）
+            const gcj = wgs84ToGcj02(position.latitude, position.longitude);
+
+            // 通过后端获取真实地址信息（不使用"自动获取"）
+            let addressInfo;
+            try {
+              addressInfo = await api.notes.reverseGeocode.mutate({
+                latitude: position.latitude,
+                longitude: position.longitude
+              });
+            } catch (addrError) {
+              console.error('Failed to reverse geocode:', addrError);
+            }
+
+            const autoLocation: LocationData = {
+              id: `auto_${Date.now()}`,
+              latitude: gcj.latitude,
+              longitude: gcj.longitude,
+              address: addressInfo?.address || '',
+              formattedAddress: addressInfo?.formattedAddress || '',
+              poiName: addressInfo?.poiName || addressInfo?.address || '',
+              distance: '0米',
+              createdAt: new Date().toISOString()
+            };
+
+            // 自动获取的位置添加到列表末尾，与手动添加的位置共存
+            locations.push(autoLocation);
+          } catch (error) {
+            // 获取位置失败，静默失败，不影响笔记创建/编辑
+          }
+        }
+
         // 合并位置数据到 metadata
         const finalMetadata = {
           ...metadata,
-          locations: editorLocations.length > 0 ? editorLocations : undefined
+          locations: locations.length > 0 ? locations : undefined
         }
 
         if (isCreateMode) {

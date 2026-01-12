@@ -127,15 +127,22 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
             {blinko.config.value?.timeFormat == 'relative'
               ? dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).fromNow()
               : dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')}
-            }
           </div>
         </Tooltip>
 
-        {/* 显示位置坐标（在日期时间之后） */}
+        {/* 显示位置（在日期时间之后） */}
         {blinkoItem.metadata?.locations && blinkoItem.metadata.locations.length > 0 && (
-          <Tooltip content={blinkoItem.metadata.locations[0].poiName || '位置'} delay={1000}>
-            <div className={`${isExpanded ? 'text-sm' : 'text-xs'} text-primary-500`}>
-              📍 {blinkoItem.metadata.locations[0].latitude.toFixed(6)}, {blinkoItem.metadata.locations[0].longitude.toFixed(6)}
+          <Tooltip content="查看地图" delay={1000}>
+            <div
+              className={`${isExpanded ? 'text-sm' : 'text-xs'} text-desc cursor-pointer transition-colors hover:text-primary-500`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const loc = blinkoItem.metadata.locations[0];
+                const mapUrl = `https://uri.amap.com/marker?position=${loc.longitude},${loc.latitude}&name=${encodeURIComponent(loc.poiName || loc.address)}`;
+                window.open(mapUrl, '_blank');
+              }}
+            >
+              📍 {loc.poiName || loc.address}
             </div>
           </Tooltip>
         )}
