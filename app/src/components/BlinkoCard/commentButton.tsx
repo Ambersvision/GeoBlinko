@@ -355,7 +355,6 @@ export const ShowCommentDialog = async (noteId: number) => {
     });
 
   } catch (error) {
-    console.error('Failed to load note detail:', error);
     RootStore.Get(ToastPlugin).error(i18n.t('failed-to-load-comments'));
     dialog.setData({ isOpen: false });
   }

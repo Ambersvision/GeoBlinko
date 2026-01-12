@@ -60,7 +60,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           blinko.noteContent = v
           blinko.createContentStorage.save({ content: v })
         } catch (error) {
-          console.error(error)
+          // Ignore error
         }
       } else {
         try {
@@ -73,7 +73,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             blinko.editContentStorage.push({ content: v, id: Number(blinko.curSelectedNote!.id) })
           }
         } catch (error) {
-          console.error(error)
+          // Ignore error
         }
       }
     },
@@ -97,6 +97,37 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     }
   }))
 
+  // 自动获取位置（仅创建模式且用户未手动添加位置时）
+  useEffect(() => {
+    if (mode === 'create' && editorLocations.length === 0) {
+      const fetchAutoLocation = async () => {
+        try {
+          const position = await geolocationService.getCurrentPosition();
+          // 转换为 GCJ02 坐标（高德坐标系）
+          const gcj = wgs84ToGcj02(position.latitude, position.longitude);
+
+          const autoLocation: LocationData = {
+            id: `auto_${Date.now()}`,
+            latitude: gcj.latitude,
+            longitude: gcj.longitude,
+            address: '自动获取',
+            formattedAddress: '自动获取',
+            poiName: '自动获取',
+            distance: '0米',
+            createdAt: new Date().toISOString()
+          };
+
+          setEditorLocations([autoLocation]);
+        } catch (error) {
+          // 获取位置失败不提示，用户可以手动添加
+        }
+      };
+
+      // 延迟获取位置，避免阻塞界面
+      const timer = setTimeout(fetchAutoLocation, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [mode, editorLocations.length]);
   useEffect(() => {
     blinko.isCreateMode = mode == 'create'
     if (mode == 'create') {
@@ -119,7 +150,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           setEditorLocations(blinko.curSelectedNote.metadata.locations)
         }
       } catch (error) {
-        console.error(error)
+        // Ignore error
       }
     }
   }, [mode])
@@ -127,14 +158,12 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
   // 自动打开位置选择器（用于编辑位置的场景）
   useEffect(() => {
     if (autoOpenLocationPicker) {
-      console.log('[BlinkoEditor] Auto-opening location picker');
       setIsLocationPickerOpen(true);
     }
   }, [autoOpenLocationPicker])
 
   // 处理位置按钮点击
   const handleLocationButtonPress = () => {
-    console.log('[BlinkoEditor] Location button pressed, opening picker');
     setIsLocationPickerOpen(true);
   }
 
@@ -197,7 +226,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
                 longitude: position.longitude
               });
             } catch (addrError) {
-              console.error('Failed to reverse geocode:', addrError);
+              // Ignore error
             }
 
             const autoLocation: LocationData = {
@@ -225,7 +254,6 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
         }
 
         if (isCreateMode) {
-          console.log("createMode", files, references, noteType, metadata)
           //@ts-ignore
           await blinko.upsertNote.call({ type: noteType, references, refresh: false, content: blinko.noteContent, attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }), metadata: finalMetadata })
           blinko.createAttachmentsStorage.clear()
@@ -258,7 +286,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
               blinko.editContentStorage.remove(index)
             }
           } catch (error) {
-            console.error(error)
+            // Ignore error
           }
           setEditorLocations([])
         }

@@ -92,7 +92,6 @@ export const LocationPicker = observer(({
         });
         setSearchResults(results);
       } catch (error) {
-        console.error('Search location error:', error);
         ToastPlugin.error(t('location.search.error'));
       } finally {
         setIsLoading(false);
@@ -115,9 +114,8 @@ export const LocationPicker = observer(({
       try {
         const keyResult = await api.config.getAmapKey.query();
         amapKey = keyResult.key;
-        console.log('[LocationPicker] Got Amap key from server');
       } catch (error) {
-        console.error('[LocationPicker] Failed to get Amap key from server:', error);
+        // Ignore error
       }
     }
 
@@ -245,7 +243,7 @@ export const LocationPicker = observer(({
       createdAt: new Date().toISOString()
     });
 
-    // 只在需要时获取附近1000m的位置列表
+    // 获取附近1000m的位置列表（扩大搜索范围）
     if (updateNearbyLocations) {
       try {
         const nearbyResults = await api.notes.getNearbyLocations.mutate({
@@ -259,7 +257,6 @@ export const LocationPicker = observer(({
         // 在地图上显示附近位置标记
         addNearbyMarkersToMap(nearbyResults);
       } catch (error) {
-        console.error('Failed to get nearby locations:', error);
         setNearbyLocations([]);
       }
     }
@@ -295,9 +292,7 @@ export const LocationPicker = observer(({
           if (disposed) return;
           try {
             geocoderRef.current = new AMap.Geocoder({ radius: 1000 });
-            console.log('Geocoder initialized successfully');
           } catch (error) {
-            console.error('Geocoder initialization failed:', error);
             setMapError('地理编码器加载失败，请刷新重试');
           }
         });
@@ -321,7 +316,6 @@ export const LocationPicker = observer(({
           });
         });
       } catch (error: any) {
-        console.error('Init map failed:', error);
         setMapError(error?.message || '地图加载失败');
       } finally {
         if (!disposed) setMapLoading(false);
@@ -410,11 +404,6 @@ export const LocationPicker = observer(({
       // 转 GCJ02 以便在高德/国内地图上避免偏移
       const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
-      // 显示位置精度信息（仅用于调试）
-      if (position.accuracy) {
-        const accuracyText = position.accuracy < 20 ? '超高精度' : position.accuracy < 50 ? '高精度' : position.accuracy < 100 ? '中等精度' : '低精度';
-      }
-
       // 先获取当前位置的地址信息（服务端已做 WGS->GCJ，传原始 WGS 即可）
       let addressData;
       try {
@@ -423,7 +412,6 @@ export const LocationPicker = observer(({
           longitude: position.longitude
         });
       } catch (geocodeError) {
-        console.error('Failed to reverse geocode:', geocodeError);
         ToastPlugin.error('获取位置信息失败');
         return;
       }
@@ -438,7 +426,6 @@ export const LocationPicker = observer(({
           pageSize: 10
         });
       } catch (error) {
-        console.error('Failed to get nearby locations:', error);
         nearbyResults = [];
       }
 
@@ -464,8 +451,6 @@ export const LocationPicker = observer(({
       ToastPlugin.success('找到附近位置，请选择');
 
     } catch (error: any) {
-      console.error('Get current location error:', error);
-
       if (error.message?.includes('permission') || error.message?.includes('denied')) {
         setShowPermissionDialog(true);
         onPermissionOpen();
@@ -521,7 +506,6 @@ export const LocationPicker = observer(({
         longitude: target.longitude
       });
     } catch (error) {
-      console.error('jumpMapToKeyword error:', error);
       ToastPlugin.error('地图跳转失败');
     } finally {
       setMapLoading(false);
@@ -658,7 +642,6 @@ export const LocationPicker = observer(({
       await geolocationService.openSystemSettings();
       onPermissionClose();
     } catch (error) {
-      console.error('Failed to open system settings:', error);
       ToastPlugin.error(t('location.settings.openFailed'));
     }
   };
