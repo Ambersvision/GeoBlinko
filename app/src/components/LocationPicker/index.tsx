@@ -4,6 +4,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input
 import { Icon } from '@/components/Common/Iconify/icons';
 import { useTranslation } from 'react-i18next';
 import { geolocationService, LocationResult } from '@/services/GeolocationService';
+import { mapService, MapProvider, wgs84ToGcj02 } from '@/services/MapService';
 import { useDisclosure } from '@heroui/react';
 import { debounce } from 'lodash';
 import { api } from '@/lib/trpc';
@@ -56,13 +57,10 @@ export const LocationPicker = observer(({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const nearbyMarkersRef = useRef<any[]>([]); // 存储附近位置标记
-  const geocoderRef = useRef<any>(null);
+  const nearbyMarkersRef = useRef<any[]>([]);
+  const currentMapProviderRef = useRef<MapProvider | null>(null);
   const locationFetchedRef = useRef(false);
-  const skipAutoLocationRef = useRef(false); // 标志：跳过自动获取当前位置
-
-  // 从配置文件读取高德 API Key（Docker 容器启动时注入）
-  const blinkoConfig = (window as any).__BLINKO_CONFIG__ || {};
+  const skipAutoLocationRef = useRef(false);
 
   // 当 initialLocations 变化时更新 locations 状态
   useEffect(() => {
@@ -100,66 +98,6 @@ export const LocationPicker = observer(({
     [t]
   );
 
-  const loadAmap = useCallback(async () => {
-    if (typeof window === 'undefined') return null;
-    if ((window as any).AMap) return (window as any).AMap;
-
-    // 获取 API Key：优先级：配置文件 > 后端 API
-    let amapKey: string | undefined = blinkoConfig.VITE_AMAP_WEB_API_KEY ||
-                                   blinkoConfig.NEXT_PUBLIC_AMAP_WEB_API_KEY ||
-                                   blinkoConfig.AMAP_WEB_API_KEY;
-
-    // 如果配置文件中没有，尝试从后端 API 获取
-    if (!amapKey) {
-      try {
-        const keyResult = await api.config.getAmapKey.query();
-        amapKey = keyResult.key;
-      } catch (error) {
-        // Ignore error
-      }
-    }
-
-    if (!amapKey || amapKey.includes('__')) {
-      throw new Error('缺少高德 Web API Key，请在 docker-compose.yml 中配置 VITE_AMAP_WEB_API_KEY');
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector('script[data-amap="v2"]');
-      if (existing) {
-        // 检查脚本是否已加载完成
-        if ((window as any).AMap) {
-          resolve();
-        } else {
-          existing.addEventListener('load', () => resolve(), { once: true });
-          existing.addEventListener('error', () => reject(new Error('AMap load error')), { once: true });
-        }
-        return;
-      }
-      const script = document.createElement('script');
-      script.setAttribute('data-amap', 'v2');
-      script.src = `https://webapi.amap.com/maps?v=2.0&key=${amapKey}`;
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('AMap load error'));
-      document.head.appendChild(script);
-    });
-
-    return (window as any).AMap;
-  }, []);
-
-  const reverseGeocodeByJs = useCallback(async (lng: number, lat: number) => {
-    if (!geocoderRef.current) return null;
-    return await new Promise<any>((resolve) => {
-      geocoderRef.current.getAddress([lng, lat], (status: string, result: any) => {
-        if (status === 'complete' && result?.regeocode) {
-          resolve(result.regeocode);
-        } else {
-          resolve(null);
-        }
-      });
-    });
-  }, []);
-
   // 清除附近位置标记
   const clearNearbyMarkers = useCallback(() => {
     if (!mapInstanceRef.current) return;
@@ -169,9 +107,12 @@ export const LocationPicker = observer(({
     nearbyMarkersRef.current = [];
   }, []);
 
-  // 在地图上添加附近位置标记
+  // 在地图上添加附近位置标记（简化版本，仅对高德地图启用）
   const addNearbyMarkersToMap = useCallback((locations: any[]) => {
     if (!mapInstanceRef.current) return;
+
+    // 只为高德地图添加附近位置标记
+    if (currentMapProviderRef.current !== MapProvider.AMAP) return;
 
     locations.forEach(loc => {
       const marker = new (window as any).AMap.Marker({
@@ -191,45 +132,29 @@ export const LocationPicker = observer(({
   }, []);
 
   const focusMapOnLocation = useCallback(async (loc: { latitude: number; longitude: number }, providedPoiName?: string, providedAddress?: string, updateNearbyLocations: boolean = true) => {
-    if (!mapInstanceRef.current || !markerRef.current) return;
-    const center: [number, number] = [loc.longitude, loc.latitude];
-
     // 清除旧的附近位置标记
     clearNearbyMarkers();
 
-    // 获取当前缩放级别，保持不变
-    const currentZoom = mapInstanceRef.current.getZoom();
+    // 使用 MapService 更新地图中心和标记
+    mapService.setCenter(loc.latitude, loc.longitude);
+    mapService.updateMarker(loc.latitude, loc.longitude);
 
-    // 更新标记位置到指定位置
-    markerRef.current.setPosition(center);
-
-    // 移动地图到指定位置，保持当前缩放级别
-    mapInstanceRef.current.setCenter(center);
-
-    // 立即获取新位置的地址（不等待 moveend 事件）
-    const geocode = await reverseGeocodeByJs(loc.longitude, loc.latitude);
-
-    // 如果提供了名称（从列表选择时），直接使用；否则使用地理编码结果
+    // 尝试从后端获取新位置的地址信息
     let poiName = providedPoiName;
     let address = providedAddress;
 
-    if (!poiName) {
-      // 优先从 POI 数组中获取名称，其次使用 AOI，最后使用 building/neighborhood
-      poiName = '地图选点';
-      if (geocode?.pois && geocode.pois.length > 0) {
-        // 优先使用距离最近的 POI（通常距离为 0 或很小）
-        poiName = geocode.pois[0].name;
-      } else if (geocode?.aois && geocode.aois.length > 0) {
-        // 如果没有 POI，使用 AOI（区域）名称
-        poiName = geocode.aois[0].name;
-      } else {
-        // 最后尝试使用 building 或 neighborhood
-        poiName = geocode?.addressComponent?.building || geocode?.addressComponent?.neighborhood || '地图选点';
+    if (!poiName || !address) {
+      try {
+        const geocode = await api.notes.reverseGeocode.mutate({
+          latitude: loc.latitude,
+          longitude: loc.longitude
+        });
+        if (!poiName) poiName = geocode.poiName || '地图选点';
+        if (!address) address = geocode.formattedAddress || '';
+      } catch (error) {
+        if (!poiName) poiName = '地图选点';
+        if (!address) address = '';
       }
-    }
-
-    if (!address) {
-      address = geocode?.formattedAddress || '';
     }
 
     setMapSelection({
@@ -249,7 +174,7 @@ export const LocationPicker = observer(({
         const nearbyResults = await api.notes.getNearbyLocations.mutate({
           latitude: loc.latitude,
           longitude: loc.longitude,
-          radius: 1000, // 扩大到1000米范围内
+          radius: 1000,
           pageSize: 10
         });
         setNearbyLocations(nearbyResults);
@@ -260,7 +185,7 @@ export const LocationPicker = observer(({
         setNearbyLocations([]);
       }
     }
-  }, [reverseGeocodeByJs]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -269,50 +194,39 @@ export const LocationPicker = observer(({
       setMapLoading(true);
       setMapError(null);
       try {
-        const AMap = await loadAmap();
-        if (!AMap || disposed) return;
-
-        // 等待AMap完全初始化
-        await new Promise<void>((resolve) => setTimeout(resolve, 200));
+        await mapService.initConfig();
 
         const base = mapSelection || locations[0] || nearbyLocations[0];
-        const centerLng = base?.longitude ?? 116.397428;
-        const centerLat = base?.latitude ?? 39.90923;
+        const centerLng = base?.longitude ?? 0;
+        const centerLat = base?.latitude ?? 0;
 
-        // 先创建地图实例
-        mapInstanceRef.current = new AMap.Map(mapContainerRef.current, {
-          zoom: 15,
-          center: [centerLng, centerLat],
-          viewMode: '3D',
-          resizeEnable: true
-        });
+        if (!mapContainerRef.current) return;
 
-        // 使用AMap.plugin确保Geocoder插件加载
-        AMap.plugin('AMap.Geocoder', () => {
+        // 初始化地图（自动选择合适的提供商）
+        const mapResult = await mapService.initMap(
+          mapContainerRef.current,
+          centerLat,
+          centerLng
+        );
+
+        if (!mapResult || disposed) return;
+
+        const { map, marker, AMap, L, googleMaps } = mapResult;
+
+        mapInstanceRef.current = map;
+        markerRef.current = marker;
+
+        // 保存地图提供商引用
+        if (AMap) currentMapProviderRef.current = MapProvider.AMAP;
+        else if (googleMaps) currentMapProviderRef.current = MapProvider.GOOGLE;
+        else if (L) currentMapProviderRef.current = MapProvider.OPENSTREETMAP;
+
+        // 监听地图点击事件
+        mapService.onClick(async (lat: number, lng: number) => {
           if (disposed) return;
-          try {
-            geocoderRef.current = new AMap.Geocoder({ radius: 1000 });
-          } catch (error) {
-            setMapError('地理编码器加载失败，请刷新重试');
-          }
-        });
-
-        // 等待Geocoder初始化
-        await new Promise<void>((resolve) => setTimeout(resolve, 100));
-
-    markerRef.current = new AMap.Marker({
-      position: [centerLng, centerLat],
-      draggable: false,  // 固定在中心，不允拖拽
-      cursor: 'default'
-    });
-    mapInstanceRef.current.add(markerRef.current);
-
-    // 监听地图点击事件，点击地点后更新到中心点并获取附近位置
-    mapInstanceRef.current.on('click', async (e: any) => {
-          const { lnglat } = e;
           await focusMapOnLocation({
-            latitude: lnglat.getLat(),
-            longitude: lnglat.getLng()
+            latitude: lat,
+            longitude: lng
           });
         });
       } catch (error: any) {
@@ -325,14 +239,11 @@ export const LocationPicker = observer(({
     initMap();
     return () => {
       disposed = true;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.destroy?.();
-      }
+      mapService.destroy();
       mapInstanceRef.current = null;
       markerRef.current = null;
-      geocoderRef.current = null;
     };
-  }, [isOpen, loadAmap]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!mapSelection && locations.length > 0) {
@@ -347,38 +258,6 @@ export const LocationPicker = observer(({
       getCurrentLocation();
     }
   }, [isOpen, mapLoading]);
-
-  // WGS84 -> GCJ02（高德坐标系），避免打开高德地图偏移
-  const wgs84ToGcj02 = (lat: number, lng: number) => {
-    const PI = 3.14159265358979324;
-    const A = 6378245.0;
-    const EE = 0.00669342162296594323;
-    const outOfChina = (lat: number, lng: number) => lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
-    const transformLat = (x: number, y: number) => {
-      let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
-      ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
-      ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
-      ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
-      return ret;
-    };
-    const transformLng = (x: number, y: number) => {
-      let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
-      ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
-      ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
-      ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
-      return ret;
-    };
-    if (outOfChina(lat, lng)) return { latitude: lat, longitude: lng };
-    let dLat = transformLat(lng - 105.0, lat - 35.0);
-    let dLng = transformLng(lng - 105.0, lat - 35.0);
-    const radLat = lat / 180.0 * PI;
-    let magic = Math.sin(radLat);
-    magic = 1 - EE * magic * magic;
-    const sqrtMagic = Math.sqrt(magic);
-    dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
-    dLng = (dLng * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
-    return { latitude: lat + dLat, longitude: lng + dLng };
-  };
 
   // 获取当前位置 - 直接获取当前位置并添加
   const getCurrentLocation = async () => {
@@ -399,12 +278,10 @@ export const LocationPicker = observer(({
         return;
       }
 
-      // 获取位置 (WGS84)
+      // 获取位置 (WGS84) - 传原始坐标给后端，后端会自动选择合适的地图服务
       const position = await geolocationService.getCurrentPosition();
-      // 转 GCJ02 以便在高德/国内地图上避免偏移
-      const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
-      // 先获取当前位置的地址信息（服务端已做 WGS->GCJ，传原始 WGS 即可）
+      // 先获取当前位置的地址信息（服务端会自动选择合适的地图服务）
       let addressData;
       try {
         addressData = await api.notes.reverseGeocode.mutate({
@@ -416,20 +293,20 @@ export const LocationPicker = observer(({
         return;
       }
 
-      // 获取附近的位置列表（服务端也会转换）
+      // 获取附近的位置列表
       let nearbyResults;
       try {
         nearbyResults = await api.notes.getNearbyLocations.mutate({
           latitude: position.latitude,
           longitude: position.longitude,
-          radius: 2000, // 2000米范围内（扩大搜索范围以提高准确性）
+          radius: 2000,
           pageSize: 10
         });
       } catch (error) {
         nearbyResults = [];
       }
 
-      // 将当前位置添加到列表的第一个位置（存 GCJ 坐标，打开高德不再偏移）
+      // 将当前位置添加到列表的第一个位置
       const currentLoc = {
         id: `current_${Date.now()}`,
         name: addressData.poiName || addressData.address || '当前位置',

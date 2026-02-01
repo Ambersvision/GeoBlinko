@@ -53,13 +53,26 @@ services:
       # 请将以下IP地址改为您的飞牛NAS的实际IP地址
       NEXT_PUBLIC_BASE_URL: "http://localhost:2222"
       NEXTAUTH_SECRET: "postgres"
+
+      # 地图服务配置
+      # MAP_PROVIDER: auto, amap, google, osm
+      # auto: 自动选择（国内用高德，国外用Google或OSM）
+      # amap: 强制使用高德地图（仅中国地区）
+      # google: 强制使用 Google Maps（国际地区）
+      # osm: 使用 OpenStreetMap（免费，无需API Key）
+      MAP_PROVIDER: "auto"
+
       # API Key 注入配置（运行时替换占位符）
-      INJECT_VARS: "VITE_AMAP_WEB_API_KEY NEXT_PUBLIC_AMAP_WEB_API_KEY AMAP_WEB_API_KEY"
+      INJECT_VARS: "VITE_AMAP_WEB_API_KEY NEXT_PUBLIC_AMAP_WEB_API_KEY AMAP_WEB_API_KEY VITE_GOOGLE_MAPS_API_KEY GOOGLE_MAPS_API_KEY MAP_PROVIDER"
+
       # Frontend (Vite) - exposed to client bundle
-      VITE_AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
+      VITE_AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key（中国地区）
+      VITE_GOOGLE_MAPS_API_KEY: "your-google-maps-api-key" # 请将此处改为您自己的 Google Maps API Key（国际地区）
+
       # Legacy / other parts (kept for compatibility)
-      NEXT_PUBLIC_AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
-      AMAP_WEB_API_KEY: "your-amap-web-api-key" # 请将此处改为您自己的高德Web API Key
+      NEXT_PUBLIC_AMAP_WEB_API_KEY: "your-amap-web-api-key"
+      AMAP_WEB_API_KEY: "your-amap-web-api-key"
+      GOOGLE_MAPS_API_KEY: "your-google-maps-api-key"
       POSTGRES_USER: "postgres" # 请将此处改为您自己的用户名
       POSTGRES_PASSWORD: "postgres" # 请将此处改为您自己的密码
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres" # 请根据实际情况修改数据库连接URL

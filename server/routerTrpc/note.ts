@@ -14,50 +14,7 @@ import { Context } from '../context';
 import { cache } from '@shared/lib/cache';
 import { AiModelFactory } from '@server/aiServer/aiModelFactory';
 import { authProcedure, demoAuthMiddleware, publicProcedure, router } from '@server/middleware';
-import { amapClient } from '../lib/location';
-import { mockAmapClient } from '../lib/locationMock';
-
-// WGS84 -> GCJ02 转换工具（高德/国内地图用 GCJ02，不转会有数百米偏移）
-const PI = 3.14159265358979324;
-const A = 6378245.0;
-const EE = 0.00669342162296594323;
-const outOfChina = (lat: number, lng: number) => lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
-const transformLat = (x: number, y: number) => {
-  let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
-  ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
-  ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
-  ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
-  return ret;
-};
-const transformLng = (x: number, y: number) => {
-  let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
-  ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
-  ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
-  ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
-  return ret;
-};
-const wgs84ToGcj02 = (lat: number, lng: number) => {
-  if (outOfChina(lat, lng)) return { latitude: lat, longitude: lng };
-  let dLat = transformLat(lng - 105.0, lat - 35.0);
-  let dLng = transformLng(lng - 105.0, lat - 35.0);
-  const radLat = lat / 180.0 * PI;
-  let magic = Math.sin(radLat);
-  magic = 1 - EE * magic * magic;
-  const sqrtMagic = Math.sqrt(magic);
-  dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
-  dLng = (dLng * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
-  return { latitude: lat + dLat, longitude: lng + dLng };
-};
-
-// 如果没有配置高德地图 API Key，使用模拟服务
-const useMockClient = !process.env.AMAP_WEB_API_KEY || process.env.AMAP_WEB_API_KEY === 'your_amap_api_key_here';
-const locationClient = useMockClient ? mockAmapClient : amapClient;
-
-if (useMockClient) {
-  console.log('[Location] Using mock location client for development/testing');
-} else {
-  console.log('[Location] Using real Amap API client');
-}
+import { locationService } from '../lib/locationService';
 
 const extractHashtags = (input: string): string[] => {
   const withoutCodeBlocks = input.replace(/```[\s\S]*?```/g, '');
@@ -1971,7 +1928,7 @@ export const noteRouter = router({
       const { keyword, city, pageSize } = input;
       
       try {
-        const results = await locationClient.searchLocation({
+        const results = await locationService.searchLocation({
           keyword,
           city,
           pageSize
@@ -2005,11 +1962,9 @@ export const noteRouter = router({
       const { latitude, longitude, radius } = input;
       
       try {
-        const gcjCoord = wgs84ToGcj02(latitude, longitude);
-        const result = await locationClient.reverseGeocode({
-          latitude: gcjCoord.latitude,
-          longitude: gcjCoord.longitude,
-          radius
+        const result = await locationService.reverseGeocode({
+          latitude,
+          longitude
         });
         return result;
       } catch (error) {
@@ -2042,10 +1997,9 @@ export const noteRouter = router({
       const { latitude, longitude, radius, keywords, pageSize } = input;
       
       try {
-        const gcjCoord = wgs84ToGcj02(latitude, longitude);
-        const results = await locationClient.searchNearby({
-          latitude: gcjCoord.latitude,
-          longitude: gcjCoord.longitude,
+        const results = await locationService.searchNearby({
+          latitude,
+          longitude,
           keywords,
           radius,
           pageSize
