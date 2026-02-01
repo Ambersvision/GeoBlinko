@@ -106,13 +106,30 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           // 转换为 GCJ02 坐标（高德坐标系）
           const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
+          // 调用逆地理编码 API 获取位置名称
+          let addressData;
+          try {
+            addressData = await api.notes.reverseGeocode.mutate({
+              latitude: gcj.latitude,
+              longitude: gcj.longitude
+            });
+          } catch (geocodeError) {
+            console.error('Failed to reverse geocode:', geocodeError);
+            // 逆地理编码失败时使用坐标信息
+            addressData = {
+              address: `${gcj.latitude.toFixed(6)}, ${gcj.longitude.toFixed(6)}`,
+              formattedAddress: `${gcj.latitude.toFixed(6)}, ${gcj.longitude.toFixed(6)}`,
+              poiName: '未知位置'
+            };
+          }
+
           const autoLocation: LocationData = {
             id: `auto_${Date.now()}`,
             latitude: gcj.latitude,
             longitude: gcj.longitude,
-            address: '自动获取',
-            formattedAddress: '自动获取',
-            poiName: '自动获取',
+            address: addressData.address || '未知位置',
+            formattedAddress: addressData.formattedAddress || '未知位置',
+            poiName: addressData.poiName || addressData.address || '未知位置',
             distance: '0米',
             createdAt: new Date().toISOString()
           };
@@ -120,6 +137,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           setEditorLocations([autoLocation]);
         } catch (error) {
           // 获取位置失败不提示，用户可以手动添加
+          console.error('Auto location fetch failed:', error);
         }
       };
 

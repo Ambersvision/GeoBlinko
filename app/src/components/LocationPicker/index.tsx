@@ -312,8 +312,8 @@ export const LocationPicker = observer(({
         name: addressData.poiName || addressData.address || '当前位置',
         address: addressData.address || '',
         formattedAddress: addressData.formattedAddress || '',
-        latitude: gcj.latitude,
-        longitude: gcj.longitude,
+        latitude: position.latitude,
+        longitude: position.longitude,
         distance: '0米',
         type: '当前位置'
       };

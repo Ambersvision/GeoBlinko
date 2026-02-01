@@ -127,7 +127,6 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
             {blinko.config.value?.timeFormat == 'relative'
               ? dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).fromNow()
               : dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')}
-            }
           </div>
         </Tooltip>
 
