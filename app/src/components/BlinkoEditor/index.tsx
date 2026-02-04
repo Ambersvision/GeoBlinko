@@ -219,9 +219,8 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
         // 准备位置数据
         let locations = [...editorLocations];
 
-        // 创建模式：无条件自动获取当前位置
-        // 编辑模式：用户未手动添加位置时自动获取（editorLocations.length === 0）
-        const shouldAutoCaptureLocation = isCreateMode || (mode === 'edit' && locations.length === 0);
+        // 无论创建还是编辑模式，只要用户没有手动添加位置，就自动获取当前位置
+        const shouldAutoCaptureLocation = locations.length === 0;
 
         if (shouldAutoCaptureLocation) {
           try {
