@@ -220,7 +220,7 @@ class AmapClient {
       address,
       formattedAddress,
       province: addressComponent.province || '',
-      city: Array.isArray(addressComponent.city) ? addressComponent.city[0] : addressComponent.city,
+      city: Array.isArray(addressComponent.city) ? addressComponent.city[0] : (addressComponent.city || ''),
       district: addressComponent.district || '',
       street: addressComponent.township || '',
       poiName,
