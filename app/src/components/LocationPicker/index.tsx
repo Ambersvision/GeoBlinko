@@ -318,13 +318,14 @@ export const LocationPicker = observer(({
         type: '当前位置'
       };
 
-      // 设置附近位置列表，当前位置排在第一位
+      // 先设置附近位置列表，当前位置排在第一位
       setNearbyLocations([currentLoc, ...nearbyResults]);
-      // focusMapOnLocation 会设置 mapSelection，不需要手动设置
+
+      // focusMapOnLocation 会设置 mapSelection，并且会更新 nearbyLocations，所以要传入 false 避免覆盖当前位置
       await focusMapOnLocation({
         latitude: currentLoc.latitude,
         longitude: currentLoc.longitude
-      }, currentLoc.name);
+      }, currentLoc.name, currentLoc.formattedAddress, false);
       ToastPlugin.success('找到附近位置，请选择');
 
     } catch (error: any) {

@@ -133,6 +133,24 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
         {/* 显示位置（在日期时间之后） */}
         {blinkoItem.metadata?.locations && blinkoItem.metadata.locations.length > 0 && (() => {
           const loc = blinkoItem.metadata.locations[0];
+          // 格式化位置创建时间
+          const formatLocationTime = (timestamp: string) => {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+
+            if (diffMins < 1) {
+              return '刚刚';
+            } else if (diffMins < 60) {
+              return `${diffMins}分钟前`;
+            } else if (diffMins < 1440) {
+              const hours = Math.floor(diffMins / 60);
+              return `${hours}小时前`;
+            } else {
+              return date.toLocaleDateString();
+            }
+          };
           return (
             <Tooltip content="查看地图" delay={1000}>
               <div
@@ -143,7 +161,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
                   window.open(mapUrl, '_blank');
                 }}
               >
-                📍 {loc.poiName || loc.address}
+                📍 {loc.poiName || loc.address} · {formatLocationTime(loc.createdAt)}
               </div>
             </Tooltip>
           );
