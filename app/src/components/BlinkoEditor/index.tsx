@@ -185,13 +185,6 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
     setIsLocationPickerOpen(true);
   }
 
-  // 处理插入位置文本到编辑器
-  const handleInsertLocationText = (text: string) => {
-    // 通过 eventBus 触发 editor:insert 事件
-    // 这样可以复用 Editor 组件中已有的插入逻辑
-    eventBus.emit('editor:insert', text)
-  }
-
 
   return <div className={`h-full ${withoutOutline ? '' : ''}`} ref={editorRef} id='global-editor' data-tauri-drag-region onClick={() => {
     blinko.isCreateMode = mode == 'create'
@@ -324,7 +317,6 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
         isOpen={isLocationPickerOpen}
         initialLocations={editorLocations}
         onClose={() => setIsLocationPickerOpen(false)}
-        onInsertLocationText={handleInsertLocationText}
         onAddLocations={(locations) => {
           setEditorLocations(locations)
         }}

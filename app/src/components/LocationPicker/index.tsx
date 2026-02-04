@@ -29,7 +29,6 @@ interface LocationPickerProps {
   isOpen: boolean;
   onClose: () => void;
   onAddLocations: (locations: LocationData[]) => void;
-  onInsertLocationText?: (text: string) => void;
   initialLocations?: LocationData[];
 }
 
@@ -37,7 +36,6 @@ export const LocationPicker = observer(({
   isOpen,
   onClose,
   onAddLocations,
-  onInsertLocationText,
   initialLocations = []
 }: LocationPickerProps) => {
   const { t } = useTranslation();
@@ -467,39 +465,10 @@ export const LocationPicker = observer(({
     setLocations(locations.filter(loc => loc.id !== locationId));
   };
 
-  // 生成位置文本（插入到编辑器中）
-  const generateLocationText = () => {
-    if (locations.length === 0) return '';
-
-    const locationTexts = locations.map((loc, index) => {
-      // 生成高德地图链接URL
-      const mapUrl = `https://uri.amap.com/marker?position=${loc.longitude},${loc.latitude}&name=${encodeURIComponent(loc.poiName || loc.address)}`;
-
-      // 使用 Markdown 格式：更小字体 + 斜体 + 位置图钉
-      let markdown = `<span style="font-size: 0.75em;">*[📍 ${loc.poiName || loc.address}](${mapUrl})*</span>`;
-
-      // 隐藏完整地址，只显示短地址
-
-      return markdown;
-    });
-
-    // 多个位置用双换行分隔
-    return locationTexts.join('\n\n');
-  };
-
   // 确认添加位置
   const handleConfirm = () => {
-    // 保存位置数据到 metadata
+    // 只保存位置数据到 metadata，不插入到编辑器内容中
     onAddLocations(locations);
-
-    // 如果提供了回调，将位置文本插入到编辑器
-    if (onInsertLocationText) {
-      const locationText = generateLocationText();
-      if (locationText) {
-        onInsertLocationText(locationText);
-      }
-    }
-
     handleClose();
   };
 
