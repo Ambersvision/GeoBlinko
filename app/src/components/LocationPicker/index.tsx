@@ -300,7 +300,9 @@ export const LocationPicker = observer(({
           radius: 2000,
           pageSize: 10
         });
+        console.log('[LocationPicker] Got nearby locations:', nearbyResults?.length);
       } catch (error) {
+        console.error('[LocationPicker] Failed to get nearby locations:', error);
         nearbyResults = [];
       }
 
@@ -317,7 +319,12 @@ export const LocationPicker = observer(({
       };
 
       // 先设置附近位置列表，当前位置排在第一位
-      setNearbyLocations([currentLoc, ...nearbyResults]);
+      const finalNearbyLocations = nearbyResults && nearbyResults.length > 0
+        ? [currentLoc, ...nearbyResults]
+        : [currentLoc];
+
+      console.log('[LocationPicker] Setting nearby locations:', finalNearbyLocations.length);
+      setNearbyLocations(finalNearbyLocations);
 
       // focusMapOnLocation 会设置 mapSelection，并且会更新 nearbyLocations，所以要传入 false 避免覆盖当前位置
       await focusMapOnLocation({
