@@ -232,7 +232,9 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
 
         if (shouldAutoCaptureLocation) {
           try {
+            console.log('[BlinkoEditor] Auto capturing location...', { isCreateMode, mode, hasManualLocations: editorLocations.length > 0 });
             const position = await geolocationService.getCurrentPosition();
+            console.log('[BlinkoEditor] Got position:', position);
             // 转换为 GCJ02 坐标（高德坐标系）
             const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
@@ -243,7 +245,9 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
                 latitude: position.latitude,
                 longitude: position.longitude
               });
+              console.log('[BlinkoEditor] Got address info:', addressInfo);
             } catch (addrError) {
+              console.warn('[BlinkoEditor] Reverse geocode failed:', addrError);
               // Ignore error
             }
 
@@ -253,16 +257,20 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
               longitude: gcj.longitude,
               address: addressInfo?.address || '',
               formattedAddress: addressInfo?.formattedAddress || '',
-              poiName: addressInfo?.poiName || addressInfo?.address || '',
+              poiName: addressInfo?.poiName || addressInfo?.address || '未知位置',
               distance: '0米',
               createdAt: new Date().toISOString()
             };
 
+            console.log('[BlinkoEditor] Adding auto location:', autoLocation);
             // 自动获取的位置添加到列表末尾，与手动添加的位置共存
             locations.push(autoLocation);
           } catch (error) {
+            console.warn('[BlinkoEditor] Auto location capture failed:', error);
             // 获取位置失败，静默失败，不影响笔记创建/编辑
           }
+        } else {
+          console.log('[BlinkoEditor] Skipping auto location capture:', { shouldAutoCaptureLocation, isCreateMode, mode, editorLocationsLength: editorLocations.length });
         }
 
         // 合并位置数据到 metadata
