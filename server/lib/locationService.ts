@@ -196,8 +196,8 @@ class AmapClient {
       throw new Error('No reverse geocode result');
     }
 
-    const addressComponent = regeocode.addressComponent;
-    const formattedAddress = regeocode.formatted_address;
+    const addressComponent = regeocode.addressComponent || {};
+    const formattedAddress = regeocode.formatted_address || '';
     const aois = regeocode.aois || [];
     const pois = regeocode.pois || [];
 

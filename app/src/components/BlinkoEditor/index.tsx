@@ -119,17 +119,22 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             addressData = {
               address: `${gcj.latitude.toFixed(6)}, ${gcj.longitude.toFixed(6)}`,
               formattedAddress: `${gcj.latitude.toFixed(6)}, ${gcj.longitude.toFixed(6)}`,
-              poiName: '未知位置'
+              poiName: ''
             };
           }
+
+          // 当位置名称未知时，显示坐标
+          const coordString = `${gcj.latitude.toFixed(6)}, ${gcj.longitude.toFixed(6)}`;
+          const locationName = addressData.poiName || addressData.address;
+          const finalPoiName = locationName && locationName !== '未知位置' ? locationName : coordString;
 
           const autoLocation: LocationData = {
             id: `auto_${Date.now()}`,
             latitude: gcj.latitude,
             longitude: gcj.longitude,
-            address: addressData.address || '未知位置',
-            formattedAddress: addressData.formattedAddress || '未知位置',
-            poiName: addressData.poiName || addressData.address || '未知位置',
+            address: addressData.address || coordString,
+            formattedAddress: addressData.formattedAddress || coordString,
+            poiName: finalPoiName,
             distance: '0米',
             createdAt: new Date().toISOString()
           };
@@ -230,7 +235,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             // 转换为 GCJ02 坐标（高德坐标系）
             const gcj = wgs84ToGcj02(position.latitude, position.longitude);
 
-            // 通过后端获取真实地址信息（不使用"自动获取"）
+            // 通过后端获取真实地址信息
             let addressInfo;
             try {
               addressInfo = await api.notes.reverseGeocode.mutate({
@@ -243,13 +248,18 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
               // Ignore error
             }
 
+            // 当位置名称未知时，显示坐标
+            const coordString = `${gcj.latitude.toFixed(6)}, ${gcj.longitude.toFixed(6)}`;
+            const locationName = addressInfo?.poiName || addressInfo?.address;
+            const finalPoiName = locationName && locationName !== '未知位置' ? locationName : coordString;
+
             const autoLocation: LocationData = {
               id: `auto_${Date.now()}`,
               latitude: gcj.latitude,
               longitude: gcj.longitude,
-              address: addressInfo?.address || '',
-              formattedAddress: addressInfo?.formattedAddress || '',
-              poiName: addressInfo?.poiName || addressInfo?.address || '未知位置',
+              address: addressInfo?.address || coordString,
+              formattedAddress: addressInfo?.formattedAddress || coordString,
+              poiName: finalPoiName,
               distance: '0米',
               createdAt: new Date().toISOString()
             };
