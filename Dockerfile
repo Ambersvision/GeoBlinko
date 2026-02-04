@@ -97,7 +97,7 @@ ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
 ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
 
-RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
+RUN apk add --no-cache openssl python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
     if [ "$USE_MIRROR" = "true" ]; then \
         echo "Using Taobao Mirror to Install Dependencies" && \
         npm config set registry https://registry.npmmirror.com; \
